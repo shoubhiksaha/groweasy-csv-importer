@@ -1,4 +1,5 @@
 import { Request, Response, NextFunction } from 'express';
+import Papa from 'papaparse';
 import { logger } from '../utils/logger';
 import { parseCSVStream } from '../services/csv.service';
 
@@ -18,14 +19,12 @@ export const handleImport = async (req: Request, res: Response, next: NextFuncti
 
     // Quick parse to get accurate total records for progress bar
     const fileString = req.file.buffer.toString('utf-8');
-    let totalRecordsCount = 0;
-    let isHeader = true;
-    let tempBuffer = '';
     
-    // A quick hacky way to count newlines if we don't want to parse fully, but let's just 
-    // count lines since it's small enough (max 10MB)
-    const lines = fileString.split(/\r\n|\n|\r/);
-    totalRecordsCount = Math.max(0, lines.filter(l => l.trim().length > 0).length - 1); // -1 for header
+    const parsed = Papa.parse(fileString, {
+      header: true,
+      skipEmptyLines: true,
+    });
+    const totalRecordsCount = parsed.data.length;
 
     // The parseCSVStream service will handle batching, calling AI, and writing SSE events
     await parseCSVStream(req.file.buffer, res, totalRecordsCount);

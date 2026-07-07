@@ -24,7 +24,8 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFileSelect, error }) => {
 
   const handleFile = useCallback((file: File) => {
     setLocalError(null);
-    if (file.type !== 'text/csv' && !file.name.endsWith('.csv')) {
+    const allowedMimes = ['text/csv', 'application/vnd.ms-excel', 'text/plain'];
+    if (!allowedMimes.includes(file.type) && !file.name.toLowerCase().endsWith('.csv')) {
       setLocalError('Only CSV files are allowed.');
       return;
     }
@@ -55,7 +56,7 @@ export const DropZone: React.FC<DropZoneProps> = ({ onFileSelect, error }) => {
   return (
     <div className={styles.container}>
       <div 
-        className={`${styles.dropZone} ${isDragging ? styles.dragging : ''} ${error ? styles.hasError : ''}`}
+        className={`${styles.dropZone} ${isDragging ? styles.dragging : ''} ${(error || localError) ? styles.hasError : ''}`}
         onDragEnter={handleDrag}
         onDragLeave={handleDrag}
         onDragOver={handleDrag}

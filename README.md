@@ -36,12 +36,21 @@ At the root directory, you can use these commands:
 ## 🚀 Quick Start (Local Development)
 
 ### Prerequisites
-- Node.js (v18+)
+- Node.js (v18+) OR Docker
 - A Google Gemini API Key
 
-### Setup
+### Using Docker Compose (Recommended)
+You can easily spin up the entire application stack using Docker Compose:
+1. Copy `.env.example` to `.env` and add your `GEMINI_API_KEY`.
+2. Run the following command:
+   ```bash
+   docker-compose up --build
+   ```
+3. The frontend will be available at `http://localhost:3000` and the backend at `http://localhost:3001`.
+
+### Using npm Workspaces (Manual)
 1. Clone the repository.
-2. Run `npm install` at the root (this uses npm workspaces to install both client and server dependencies).
+2. Run `npm install` at the root.
 3. Copy the environment file:
    ```bash
    cp .env.example .env
@@ -51,9 +60,6 @@ At the root directory, you can use these commands:
    ```bash
    npm run dev
    ```
-   
-- **Frontend**: http://localhost:3000
-- **Backend**: http://localhost:3001
 
 ## 🧪 Testing
 Run the backend unit tests:
@@ -65,6 +71,7 @@ You can find 6 diverse test CSVs (including a 5000-row stress test and messy for
 
 ## 📦 Deployment
 The application is structured as a monorepo and can be deployed easily:
+- **Live Demo**: [Insert Live Demo URL Here]
 - **Frontend (Vercel)**: Point Vercel to the `client/` directory and set `NEXT_PUBLIC_API_URL` to your backend URL.
 - **Backend (Render/Railway)**: Point to the `server/` directory. Run `npm run build` and start with `npm start`. Ensure you set `GEMINI_API_KEY` and `CLIENT_URL` (for CORS).
 

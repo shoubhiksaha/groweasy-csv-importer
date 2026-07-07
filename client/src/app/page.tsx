@@ -115,7 +115,7 @@ export default function Home() {
         <div className="animate-fade-in">
           <Card>
             <h2>Preview: {file?.name}</h2>
-            <p>Showing first {totalRows} records...</p>
+            <p>Showing first {totalRows} records (full file will be imported)...</p>
             {isParsing ? (
               <p>Parsing...</p>
             ) : (
