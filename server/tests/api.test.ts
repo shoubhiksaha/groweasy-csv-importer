@@ -32,6 +32,8 @@ app.post('/api/import', uploadMiddleware.single('file'), async (req, res, next) 
   }
 });
 
+import { extractCrmDataWithAI } from '../src/services/ai.service';
+
 describe('POST /api/import', () => {
   it('should successfully parse a small valid CSV', async () => {
     const csvContent = `Full Name,Email,Phone
@@ -59,5 +61,76 @@ Bob, , `;
 
     expect(response.text).toContain('"type":"complete"');
     expect(response.text).toContain('"skippedRecords":1');
+  });
+
+  it('should reject empty CSV', async () => {
+    const csvContent = ``;
+
+    const response = await request(app)
+      .post('/api/import')
+      .attach('file', Buffer.from(csvContent), 'empty.csv');
+
+    expect(response.text).toContain('"type":"error"');
+    expect(response.text).toContain('CSV file is empty or contains no headers');
+  });
+
+  it('should handle AI row-count mismatch and skip batch', async () => {
+    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
+      return []; // Return empty array to trigger mismatch
+    }).mockImplementationOnce(async (headers, batch) => {
+      return []; // Retry 1
+    }).mockImplementationOnce(async (headers, batch) => {
+      return []; // Retry 2
+    });
+
+    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com,12345`;
+
+    const response = await request(app)
+      .post('/api/import')
+      .attach('file', Buffer.from(csvContent), 'test.csv');
+
+    expect(response.text).toContain('"skippedRecords":1');
+    expect(response.text).toContain('AI processing failed');
+  });
+
+  it('should fail Zod validation if data type is wrong', async () => {
+    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
+      return batch.map((row: any) => ({
+        name: 12345, // invalid type
+        email: 'bob@test.com',
+        mobile_without_country_code: '1234567890',
+      }));
+    });
+
+    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com,1234567890`;
+
+    const response = await request(app)
+      .post('/api/import')
+      .attach('file', Buffer.from(csvContent), 'test.csv');
+
+    expect(response.text).toContain('"skippedRecords":1');
+    expect(response.text).toContain('Validation failed');
+  });
+
+  it('should normalize multiple emails and phones', async () => {
+    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
+      return batch.map((row: any) => ({
+        name: row['Full Name'],
+        email: 'bob@test.com, bob2@test.com',
+        mobile_without_country_code: '9876543210, 1234567890',
+      }));
+    });
+
+    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com, bob2@test.com,9876543210`;
+
+    const response = await request(app)
+      .post('/api/import')
+      .attach('file', Buffer.from(csvContent), 'test.csv');
+
+    expect(response.text).toContain('"type":"complete"');
+    expect(response.text).toContain('bob@test.com');
+    expect(response.text).toContain('9876543210');
+    expect(response.text).toContain('Extra emails: bob2@test.com');
+    expect(response.text).toContain('1234567890');
   });
 });

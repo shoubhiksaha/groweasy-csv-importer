@@ -50,6 +50,10 @@ const preMapRecord = (record: Record<string, any>) => {
 };
 
 export const extractCrmDataWithAI = async (headers: string[], batch: any[]) => {
+  if (!apiKey) {
+    throw new Error('AI key not configured');
+  }
+
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
     systemInstruction: getSystemPrompt(),

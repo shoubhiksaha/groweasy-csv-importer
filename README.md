@@ -11,6 +11,23 @@ An intelligent, AI-powered CSV importer built for Groweasy CRM. It ingests messy
 - **Virtualized Tables**: Uses `@tanstack/react-virtual` to efficiently render thousands of rows in the preview and results views without lag.
 - **Rules Processing**: Handles multiple emails/phones (routing extras to notes), cleans up phone formats, and filters skipped rows seamlessly.
 
+## Scripts
+
+At the root directory, you can use these commands:
+- `npm run dev` - Starts both the Next.js client and Express server concurrently.
+- `npm run build` - Builds both client and server workspaces.
+- `npm run test` - Runs the Vitest test suite for the backend.
+- `npm run check` - Runs both `npm run test` and `npm run build` sequentially for CI/CD checks.
+
+## Implementation Details
+
+- **Frontend (Next.js)**: Drag & Drop upload with PapaParse stream processing. The initial preview displays only the first 100 rows to ensure UI responsiveness. The "Confirm Import" pushes the entire file to the backend API.
+- **Backend (Express)**: Receives the file via Multer (max 10MB CSV), parses it chunk by chunk, and dispatches batches to Gemini.
+- **AI Processing**: Gemini 2.5 Flash maps fields into standard headers. It employs an exponential backoff retry mechanism (up to 3 tries per batch).
+- **Validation**: Strict row-by-row Zod schema parsing guarantees valid output shapes, dropping invalid rows into a skipped records list instead of failing entire batches.
+- **Progress Tracking**: Uses SSE (Server-Sent Events) to provide real-time batch completion percentages to the frontend.
+- **Export**: Generates a downloadable CSV mapping from the successfully processed entries.
+
 ## 🛠 Tech Stack
 - **Frontend**: Next.js 15 (React 19), pure CSS Modules, `@tanstack/react-virtual`
 - **Backend**: Node.js, Express, TypeScript, Zod, Multer

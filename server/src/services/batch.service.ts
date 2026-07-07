@@ -147,7 +147,7 @@ export const processBatch = async (
             skippedRecords.push({
               rowIndex,
               originalData,
-              reason: `Validation failed: ${validationResult.error.errors.map(e => e.message).join(', ')}`
+              reason: `Validation failed: ${validationResult.error.issues.map(e => e.message).join(', ')}`
             });
           }
         }
