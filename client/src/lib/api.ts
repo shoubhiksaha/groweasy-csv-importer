@@ -10,11 +10,19 @@ export const importCSV = (
     const formData = new FormData();
     formData.append('file', file);
 
+    const abortController = new AbortController();
+    const timeout = setTimeout(() => {
+      abortController.abort();
+      reject(new Error('Import request timed out.'));
+    }, 600000); // 10 minute timeout for large files
+
     fetch(`${API_URL}/api/import`, {
       method: 'POST',
       body: formData,
+      signal: abortController.signal,
     }).then(async (response) => {
       if (!response.ok) {
+        clearTimeout(timeout);
         if (response.status === 413) {
            return reject(new Error('File is too large. Maximum 10MB.'));
         }
@@ -27,6 +35,7 @@ export const importCSV = (
       }
 
       if (!response.body) {
+        clearTimeout(timeout);
         return reject(new Error('Response body is empty.'));
       }
 
@@ -38,39 +47,59 @@ export const importCSV = (
       const readChunk = async () => {
         try {
           const { done, value } = await reader.read();
-          if (done) {
-            return reject(new Error('stream ended before completion.'));
+          
+          if (value) {
+            buffer += decoder.decode(value, { stream: !done });
           }
 
-          buffer += decoder.decode(value, { stream: true });
-          const parts = buffer.split('\n\n');
-          buffer = parts.pop() || '';
+          if (buffer) {
+            const parts = buffer.split('\n\n');
+            // If done is true, process all parts, otherwise keep the last incomplete part in buffer
+            if (!done) {
+              buffer = parts.pop() || '';
+            } else {
+              buffer = '';
+            }
 
-          for (const part of parts) {
-            if (part.startsWith('data: ')) {
-              const dataStr = part.slice(6);
-              try {
-                const event: ProgressEvent = JSON.parse(dataStr);
-                onProgress(event);
-                if (event.type === 'complete') {
-                  resolve(event.data as ImportResponse['data']);
-                  return;
-                } else if (event.type === 'error') {
-                  reject(new Error(event.message));
-                  return;
+            for (const part of parts) {
+              if (part.trim().startsWith('data: ')) {
+                const dataStr = part.trim().slice(6);
+                try {
+                  const event: ProgressEvent = JSON.parse(dataStr);
+                  onProgress(event);
+                  if (event.type === 'complete') {
+                    clearTimeout(timeout);
+                    resolve(event.data as ImportResponse['data']);
+                    return;
+                  } else if (event.type === 'error') {
+                    clearTimeout(timeout);
+                    reject(new Error(event.message));
+                    return;
+                  }
+                } catch (e) {
+                  console.error('Failed to parse SSE event', e);
                 }
-              } catch (e) {
-                console.error('Failed to parse SSE event', e);
               }
             }
           }
+
+          if (done) {
+            clearTimeout(timeout);
+            // If we reached here without a complete/error event, it's an abnormal stream end
+            return reject(new Error('Stream ended without completion event.'));
+          }
+
           readChunk();
         } catch (error) {
+          clearTimeout(timeout);
           reject(error);
         }
       };
 
       readChunk();
-    }).catch(reject);
+    }).catch((err) => {
+      clearTimeout(timeout);
+      reject(err);
+    });
   });
 };

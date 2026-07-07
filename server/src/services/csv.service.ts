@@ -6,7 +6,7 @@ import { processBatch } from './batch.service';
 import { SkippedRecord } from '../types/api.types';
 import { CRMRecord } from '../types/crm.types';
 
-export const parseCSVStream = (fileBuffer: Buffer, res: Response): Promise<void> => {
+export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCount: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     const stream = Readable.from(fileBuffer);
     
@@ -58,9 +58,9 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response): Promise<void>
           res.write(`data: ${JSON.stringify({
             type: 'progress',
             batchIndex,
-            totalBatches: '?', // Unknown until end
+            totalBatches: Math.ceil(totalRecordsCount / batchSize), 
             processedRecords,
-            totalRecords: '?',
+            totalRecords: totalRecordsCount,
             message: `Processed batch ${batchIndex}`,
           })}\n\n`);
 
