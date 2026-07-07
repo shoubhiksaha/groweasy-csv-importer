@@ -26,6 +26,9 @@ RULES:
 7. Skip Rule:
    - If a record has NO email AND NO mobile number → mark as skipped (This is handled in post-processing, but try your best to extract emails and phones)
 
+8. CRITICAL - ARRAY LENGTH:
+   - You MUST return an array of EXACTLY the same length as the input batch array. If the input has 25 objects, you must return 25 objects. DO NOT drop, omit, or skip ANY rows, even if they contain completely useless, garbled, or irrelevant data (like election data). If a row is useless, simply return an object with all fields set to null.
+
 FEW-SHOT EXAMPLES:
 Input Row: {"Date": "13/05/2026", "Full Name": "John Doe", "Mail": "john@example.com", "Phone": "+91 9876543210", "Remarks": "Client is asking to reschedule demo", "Lead Status": "interested", "Campaign": "leads_on_demand"}
 Expected Output:
