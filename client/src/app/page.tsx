@@ -88,7 +88,7 @@ export default function Home() {
   };
 
   return (
-    <main className="container">
+    <div className="container">
       
       {/* Basic Step Indicator */}
       <div className="flex justify-center gap-4 mb-4">
@@ -198,12 +198,13 @@ export default function Home() {
                 a.href = url;
                 a.download = `groweasy-import-${new Date().toISOString()}.csv`;
                 a.click();
+                setTimeout(() => URL.revokeObjectURL(url), 1000);
               }}>Export CRM Data</Button>
               <Button onClick={handleReset}>Import Another File</Button>
             </div>
           </Card>
         </div>
       )}
-    </main>
+    </div>
   );
 }
