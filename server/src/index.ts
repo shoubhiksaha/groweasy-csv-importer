@@ -6,9 +6,9 @@ import { logger } from './utils/logger';
 import importRoutes from './routes/import.routes';
 import { errorHandler } from './middleware/errorHandler';
 
-dotenv.config();
+dotenv.config({ override: true });
 // In a monorepo, often the .env is at the root. Fallback to the root if not in server/
-dotenv.config({ path: path.join(__dirname, '../../.env') });
+dotenv.config({ path: path.join(__dirname, '../../.env'), override: true });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
