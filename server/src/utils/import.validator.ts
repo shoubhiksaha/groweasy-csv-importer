@@ -17,7 +17,7 @@ export const DataSourceEnum = z.enum([
 
 export const CrmRecordSchema = z.object({
   created_at: z.string().nullable().optional(),
-  name: z.string().nullable().optional(),
+  name: z.preprocess((val) => val != null ? String(val) : null, z.string().nullable().optional()),
   email: z.preprocess((val) => val === '' ? null : val, z.string().email().nullable().optional()),
   country_code: z.string().nullable().optional(),
   mobile_without_country_code: z.string().nullable().optional(),
@@ -32,5 +32,3 @@ export const CrmRecordSchema = z.object({
   possession_time: z.string().nullable().optional(),
   description: z.string().nullable().optional(),
 });
-
-export const BatchOutputSchema = z.array(CrmRecordSchema);

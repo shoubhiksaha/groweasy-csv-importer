@@ -26,7 +26,8 @@ app.post('/api/import', uploadMiddleware.single('file'), async (req, res, next) 
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
-    await parseCSVStream(req.file.buffer, res);
+    const totalRecordsCount = req.file.buffer.toString('utf-8').split(/\r\n|\n|\r/).filter(l => l.trim().length > 0).length - 1;
+    await parseCSVStream(req.file.buffer, res, Math.max(0, totalRecordsCount));
   } catch (err) {
     next(err);
   }
@@ -96,9 +97,10 @@ Bob, , `;
   it('should fail Zod validation if data type is wrong', async () => {
     vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
       return batch.map((row: any) => ({
-        name: 12345, // invalid type
+        name: 'Bob',
         email: 'bob@test.com',
         mobile_without_country_code: '1234567890',
+        city: true, // invalid type for string field
       }));
     });
 

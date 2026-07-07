@@ -3,7 +3,7 @@ import { SkippedRecord } from '../types/api.types';
 import { extractCrmDataWithAI } from './ai.service';
 import { logger } from '../utils/logger';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
-import { BatchOutputSchema, CrmRecordSchema } from '../utils/import.validator';
+import { CrmRecordSchema } from '../utils/import.validator';
 
 const MAX_RETRIES = 3;
 

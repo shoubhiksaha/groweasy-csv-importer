@@ -25,6 +25,16 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     // To prevent processing subsequent batches if an unrecoverable error occurs
     let hasError = false;
 
+    // Send Initial Progress Event so UI doesn't wait for the first batch
+    res.write(`data: ${JSON.stringify({
+      type: 'progress',
+      batchIndex: 0,
+      totalBatches: Math.ceil(totalRecordsCount / batchSize),
+      processedRecords: 0,
+      totalRecords: totalRecordsCount,
+      message: 'Initializing import...',
+    })}\n\n`);
+
     // PapaParse stream parsing
     const papaStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
       header: true,
@@ -105,9 +115,9 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           res.write(`data: ${JSON.stringify({
             type: 'progress',
             batchIndex,
-            totalBatches: batchIndex,
+            totalBatches: Math.ceil(totalRecordsCount / batchSize),
             processedRecords,
-            totalRecords: processedRecords,
+            totalRecords: totalRecordsCount,
             message: `Processed final batch ${batchIndex}`,
           })}\n\n`);
         } catch (error: any) {
