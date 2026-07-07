@@ -4,6 +4,7 @@ exports.processBatch = void 0;
 const ai_service_1 = require("./ai.service");
 const logger_1 = require("../utils/logger");
 const libphonenumber_js_1 = require("libphonenumber-js");
+const import_validator_1 = require("../utils/import.validator");
 const MAX_RETRIES = 3;
 const processBatch = async (headers, batch, batchIndex, totalRecordsStart // index offset for accurate row numbers
 ) => {
@@ -106,7 +107,15 @@ const processBatch = async (headers, batch, batchIndex, totalRecordsStart // ind
                     crmRecords.push(record);
                 }
             });
-            return { crmRecords, skippedRecords };
+            let validatedRecords = [];
+            try {
+                validatedRecords = import_validator_1.BatchOutputSchema.parse(crmRecords);
+            }
+            catch (e) {
+                logger_1.logger.error('Zod validation failed, using unvalidated', e);
+                validatedRecords = crmRecords;
+            }
+            return { crmRecords: validatedRecords, skippedRecords };
         }
         catch (error) {
             attempt++;

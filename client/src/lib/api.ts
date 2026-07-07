@@ -39,7 +39,7 @@ export const importCSV = (
         try {
           const { done, value } = await reader.read();
           if (done) {
-            return;
+            return reject(new Error('stream ended before completion.'));
           }
 
           buffer += decoder.decode(value, { stream: true });

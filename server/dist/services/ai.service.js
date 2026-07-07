@@ -73,7 +73,13 @@ const extractCrmDataWithAI = async (headers, batch) => {
     const result = await model.generateContent(prompt);
     const responseText = result.response.text();
     try {
-        return JSON.parse(responseText);
+        const rawJson = JSON.parse(responseText);
+        // Validate with Zod (strips unknown fields, enforces types)
+        // Here we just use safeParse or parse. We'll return raw if it fails for now to avoid breaking the pipeline,
+        // or just let Zod throw and the batch will retry. We'll let it throw.
+        // Actually wait, some emails might be dirty in rawJson before post-processing.
+        // Let's just return rawJson for now. We use Zod in batch service.
+        return rawJson;
     }
     catch (error) {
         throw new Error('AI response was not valid JSON');

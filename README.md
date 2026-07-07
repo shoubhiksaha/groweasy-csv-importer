@@ -3,7 +3,7 @@
 An intelligent, AI-powered CSV importer built for Groweasy CRM. It ingests messy, unstructured lead data, standardizes it into a unified schema, and filters invalid records.
 
 ## 🌟 Key Features
-- **Streaming Pipeline**: Handles giant CSV files using `Papa.NODE_STREAM_INPUT` to stream rows rather than blowing up memory.
+- **Efficient Parsing**: Uses `Papa.NODE_STREAM_INPUT` to process CSV buffers in chunks before passing them to the AI.
 - **AI-Powered Extraction**: Uses Gemini 2.5 Flash to automatically map arbitrary columns to CRM fields.
 - **Deterministic Pre-mapping**: Employs Regex heuristics to identify obvious fields (like email/phone) *before* hitting AI. This acts as a hint, dramatically reducing hallucinations and API costs.
 - **Batch Processing with Backoff**: Chunks processing into batches of 25 to respect Gemini rate limits, with exponential backoff for resilience.

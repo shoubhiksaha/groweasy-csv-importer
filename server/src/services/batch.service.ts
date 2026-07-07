@@ -20,11 +20,22 @@ export const processBatch = async (
     try {
       const extractedRecords = await extractCrmDataWithAI(headers, batch);
       
+      if (!Array.isArray(extractedRecords) || extractedRecords.length !== batch.length) {
+        throw new Error(`AI returned ${extractedRecords?.length} rows, expected ${batch.length}`);
+      }
+
       const crmRecords: CRMRecord[] = [];
       const skippedRecords: SkippedRecord[] = [];
-
       // Validate and post-process
-      extractedRecords.forEach((record: any, index: number) => {
+      extractedRecords.forEach((extractedRecord: any, index: number) => {
+        const defaultRecord = {
+          created_at: null, name: null, email: null, country_code: null,
+          mobile_without_country_code: null, company: null, city: null,
+          state: null, country: null, lead_owner: null, crm_status: null,
+          crm_note: null, data_source: null, possession_time: null, description: null
+        };
+        const record = { ...defaultRecord, ...extractedRecords[index] };
+        
         const rowIndex = totalRecordsStart - batch.length + index + 1;
         const originalData = batch[index];
 
@@ -39,11 +50,13 @@ export const processBatch = async (
           record.data_source = null;
         }
 
-        // Date validation
+        // Date validation and normalization
         if (record.created_at) {
           const d = new Date(record.created_at);
           if (isNaN(d.getTime())) {
             record.created_at = null; // Invalid date
+          } else {
+            record.created_at = d.toISOString();
           }
         }
 
@@ -68,16 +81,24 @@ export const processBatch = async (
         // Phone fallback & split
         if (record.mobile_without_country_code) {
            const phones = record.mobile_without_country_code.split(/[,;\/]+/).filter(Boolean);
-           let mainPhone = phones[0].replace(/\D/g, ''); // Digits only check
+           let mainPhoneStr = phones[0];
+           const fullPhoneToParse = (record.country_code || '') + mainPhoneStr;
+           const parsedPhone = parsePhoneNumberFromString(fullPhoneToParse, 'IN');
            
-           if (mainPhone) {
-              record.mobile_without_country_code = mainPhone;
+           if (parsedPhone && parsedPhone.isValid()) {
+             record.country_code = `+${parsedPhone.countryCallingCode}`;
+             record.mobile_without_country_code = parsedPhone.nationalNumber;
+           } else {
+             // Fallback: strip non-digits
+             const digits = mainPhoneStr.replace(/\D/g, '');
+             record.mobile_without_country_code = digits || null;
+           }
+           
+           if (record.mobile_without_country_code) {
               if (phones.length > 1) {
                 const extraPhones = phones.slice(1).join(', ');
                 record.crm_note = record.crm_note ? `${record.crm_note} | Extra phones: ${extraPhones}` : `Extra phones: ${extraPhones}`;
               }
-           } else {
-              record.mobile_without_country_code = null;
            }
         }
         
