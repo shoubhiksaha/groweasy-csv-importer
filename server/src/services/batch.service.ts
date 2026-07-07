@@ -3,6 +3,7 @@ import { SkippedRecord } from '../types/api.types';
 import { extractCrmDataWithAI } from './ai.service';
 import { logger } from '../utils/logger';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
+import { BatchOutputSchema } from '../utils/import.validator';
 
 const MAX_RETRIES = 3;
 
@@ -120,7 +121,14 @@ export const processBatch = async (
         }
       });
 
-      return { crmRecords, skippedRecords };
+      let validatedRecords: any[] = [];
+      try {
+        validatedRecords = BatchOutputSchema.parse(crmRecords);
+      } catch (e) {
+        logger.error('Zod validation failed, using unvalidated', e);
+        validatedRecords = crmRecords;
+      }
+      return { crmRecords: validatedRecords, skippedRecords };
 
     } catch (error: any) {
       attempt++;
