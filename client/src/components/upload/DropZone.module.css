@@ -1,0 +1,52 @@
+.container {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  width: 100%;
+}
+
+.dropZone {
+  width: 100%;
+  max-width: 600px;
+  padding: 4rem 2rem;
+  border: 2px dashed var(--border);
+  border-radius: var(--radius-lg);
+  background-color: var(--surface);
+  text-align: center;
+  cursor: pointer;
+  transition: all 0.2s ease;
+}
+
+.dropZone:hover {
+  border-color: var(--primary);
+  background-color: var(--surface-hover);
+}
+
+.dragging {
+  border-color: var(--primary);
+  background-color: var(--primary);
+  color: white;
+}
+
+.dragging p {
+  color: rgba(255, 255, 255, 0.8);
+}
+
+.hasError {
+  border-color: var(--danger);
+}
+
+.hiddenInput {
+  display: none;
+}
+
+.icon {
+  font-size: 3rem;
+  margin-bottom: 1rem;
+}
+
+.errorMessage {
+  margin-top: 1rem;
+  color: var(--danger);
+  font-size: 0.875rem;
+}
