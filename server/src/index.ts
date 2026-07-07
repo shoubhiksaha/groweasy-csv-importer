@@ -1,11 +1,14 @@
 import express from 'express';
 import cors from 'cors';
 import dotenv from 'dotenv';
+import path from 'path';
 import { logger } from './utils/logger';
 import importRoutes from './routes/import.routes';
 import { errorHandler } from './middleware/errorHandler';
 
 dotenv.config();
+// In a monorepo, often the .env is at the root. Fallback to the root if not in server/
+dotenv.config({ path: path.join(__dirname, '../../.env') });
 
 const app = express();
 const PORT = process.env.PORT || 3001;
