@@ -1,0 +1,3 @@
+First,Last,Notes,Company
+Only,Name,Should be skipped,NoCompany
+Valid,User,valid@email.com,Acme

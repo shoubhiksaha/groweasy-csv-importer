@@ -1,0 +1,5 @@
+Full Name,Contact Info,Remarks,Lead Status
+John Doe,john@example.com / +919876543210,"Wants a demo\nCall back later",interested
+Jane Smith,+918888888888,"No email provided",BAD_LEAD
+Bob,bob@example.com / bob2@example.com,"Multiple emails",SALE_DONE
+Empty Row,,,

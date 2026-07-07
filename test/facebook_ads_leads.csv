@@ -1,0 +1,2 @@
+id,created_time,ad_id,ad_name,adset_id,adset_name,campaign_id,campaign_name,form_id,form_name,is_organic,platform,full_name,phone_number,email
+123,2026-07-01T10:00:00+0000,111,Ad1,222,Adset1,333,Campaign1,444,Form1,false,fb,FB User,+919000000001,fb@user.com

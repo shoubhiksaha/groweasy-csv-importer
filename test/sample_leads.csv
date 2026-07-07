@@ -1,0 +1,5 @@
+"Date","Full Name","Mail","Phone","Remarks","Lead Status","Campaign"
+"13/05/2026","John Doe","john@example.com","+91 9876543210","Client is asking to reschedule demo","interested","leads_on_demand"
+"May 14, 2026","Sarah Smith","sarah.smith@test.com","123-456-7890","Call back later","busy","eden_park"
+"2026-05-15","Bad Lead","","","Missing contact info","spam",""
+"2026-05-16","Converted Lead","converted@example.com","9998887776","Deal closed","won","meridian_tower"
