@@ -1,12 +1,13 @@
 import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai';
 import { getSystemPrompt } from '../prompts/extraction.prompt';
 
-const apiKey = process.env.GEMINI_API_KEY;
-if (!apiKey) {
-  console.warn('GEMINI_API_KEY is missing from environment variables');
-}
-
-const genAI = new GoogleGenerativeAI(apiKey || '');
+const getGenAI = () => {
+  const apiKey = process.env.GEMINI_API_KEY;
+  if (!apiKey) {
+    throw new Error('AI key not configured');
+  }
+  return new GoogleGenerativeAI(apiKey);
+};
 
 const crmRecordSchema: Schema = {
   type: SchemaType.ARRAY,
@@ -50,9 +51,7 @@ const preMapRecord = (record: Record<string, any>) => {
 };
 
 export const extractCrmDataWithAI = async (headers: string[], batch: any[]) => {
-  if (!apiKey) {
-    throw new Error('AI key not configured');
-  }
+  const genAI = getGenAI();
 
   const model = genAI.getGenerativeModel({
     model: 'gemini-2.5-flash',
