@@ -35,16 +35,20 @@ export default function Home() {
     Papa.parse(selectedFile, {
       header: true,
       skipEmptyLines: true,
+      preview: 100, // Load only first 100 rows for preview
       complete: (results) => {
+        if (results.errors && results.errors.length > 0) {
+          setImportError(`CSV Warnings: ${results.errors.map(e => e.message).join(', ')}`);
+        }
         if (results.meta.fields) {
           setHeaders(results.meta.fields);
         }
         setPreviewData(results.data as Record<string, unknown>[]);
-        setTotalRows(results.data.length);
+        setTotalRows(results.data.length); // This is just the preview count
         setIsParsing(false);
       },
       error: (error) => {
-        setImportError(error.message);
+        setImportError(`Parse Error: ${error.message}`);
         setIsParsing(false);
       }
     });
@@ -111,7 +115,7 @@ export default function Home() {
         <div className="animate-fade-in">
           <Card>
             <h2>Preview: {file?.name}</h2>
-            <p>Total records detected: {totalRows}</p>
+            <p>Showing first {totalRows} records...</p>
             {isParsing ? (
               <p>Parsing...</p>
             ) : (
@@ -119,7 +123,7 @@ export default function Home() {
             )}
             <div className="flex justify-between mt-4">
               <Button variant="secondary" onClick={handleReset}>Cancel</Button>
-              <Button onClick={handleConfirm} disabled={isParsing}>Confirm Import</Button>
+              <Button onClick={handleConfirm} disabled={isParsing || headers.length === 0 || totalRows === 0}>Confirm Import</Button>
             </div>
           </Card>
         </div>
@@ -130,15 +134,20 @@ export default function Home() {
           <Card className="text-center">
             <h2>Processing with AI</h2>
             <p>Please wait while we intelligently map your CSV to our CRM format...</p>
-            {progress && (
+            {progress ? (
               <ProgressBar 
                 progress={
                   progress.totalRecords !== '?' && progress.totalRecords !== undefined
                     ? (progress.processedRecords / (progress.totalRecords as number)) * 100 
-                    : (progress.processedRecords / totalRows) * 100 // Estimate based on client parse
+                    : (progress.processedRecords / Math.max(1, totalRows)) * 100 // Estimate based on client parse
                 } 
                 label={progress.message}
               />
+            ) : (
+              <div className="my-4 text-center">
+                <p>Initializing AI models... this may take a few seconds.</p>
+                <div className="animate-spin inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full mt-2"></div>
+              </div>
             )}
           </Card>
         </div>
@@ -180,7 +189,16 @@ export default function Home() {
               </>
             )}
 
-            <div className="mt-4 text-center">
+            <div className="mt-4 flex gap-4 justify-center">
+              <Button variant="secondary" onClick={() => {
+                const csvData = Papa.unparse(importResult.crmRecords);
+                const blob = new Blob([csvData], { type: 'text/csv' });
+                const url = URL.createObjectURL(blob);
+                const a = document.createElement('a');
+                a.href = url;
+                a.download = `groweasy-import-${new Date().toISOString()}.csv`;
+                a.click();
+              }}>Export CRM Data</Button>
               <Button onClick={handleReset}>Import Another File</Button>
             </div>
           </Card>

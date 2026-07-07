@@ -122,6 +122,15 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response): Promise<void>
         }
       }
 
+      if (processedRecords === 0) {
+        res.write(`data: ${JSON.stringify({
+          type: 'error',
+          message: 'CSV file is empty or contains no headers'
+        })}\n\n`);
+        res.end();
+        return reject(new Error('Empty file'));
+      }
+
       // Send Completion Event
       res.write(`data: ${JSON.stringify({
         type: 'complete',

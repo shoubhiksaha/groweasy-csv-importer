@@ -46,4 +46,44 @@ Expected Output:
   "possession_time": null,
   "description": null
 }
+
+Input Row: {"Date": "01-12-2023", "Lead ID": "FB-001", "Contact Name": "Alice", "Primary Mail": "alice@gmail.com, alice.work@co.uk", "Mobile": "8877665544, 9988776655", "Form": "eden_park_ad_1"}
+Expected Output:
+{
+  "created_at": "2023-12-01T00:00:00.000Z",
+  "name": "Alice",
+  "email": "alice@gmail.com",
+  "country_code": null,
+  "mobile_without_country_code": "8877665544",
+  "company": null,
+  "city": null,
+  "state": null,
+  "country": null,
+  "lead_owner": null,
+  "crm_status": null,
+  "crm_note": "Extra emails: alice.work@co.uk | Extra phones: 9988776655",
+  "data_source": "eden_park",
+  "possession_time": null,
+  "description": null
+}
+
+Input Row: {"timestamp": "2023-01-01 12:00:00", "Lead Source": "Google Ads - meridian_tower", "Name": "Bob", "Note": "invalid number provided"}
+Expected Output:
+{
+  "created_at": "2023-01-01T12:00:00.000Z",
+  "name": "Bob",
+  "email": null,
+  "country_code": null,
+  "mobile_without_country_code": null,
+  "company": null,
+  "city": null,
+  "state": null,
+  "country": null,
+  "lead_owner": null,
+  "crm_status": "BAD_LEAD",
+  "crm_note": "invalid number provided",
+  "data_source": "meridian_tower",
+  "possession_time": null,
+  "description": null
+}
 `;

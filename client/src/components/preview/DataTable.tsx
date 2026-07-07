@@ -24,25 +24,33 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
       ref={parentRef}
       style={{ maxHeight, overflow: 'auto' }}
     >
-      <table className={styles.table}>
-        <thead>
-          <tr>
-            {headers.map((header, i) => (
-              <th key={i}>{header}</th>
-            ))}
-          </tr>
-        </thead>
-        <tbody
+      <div 
+        className={styles.gridTable} 
+        style={{ 
+          display: 'grid', 
+          gridTemplateColumns: `repeat(${headers.length}, minmax(150px, 1fr))` 
+        }}
+      >
+        {/* Header row */}
+        <div className={styles.gridHeader} style={{ display: 'contents' }}>
+          {headers.map((header, i) => (
+            <div key={i} className={styles.gridHeaderCell}>{header}</div>
+          ))}
+        </div>
+
+        {/* Virtualized body */}
+        <div
           style={{
             height: `${rowVirtualizer.getTotalSize()}px`,
             width: '100%',
             position: 'relative',
+            gridColumn: `1 / -1`
           }}
         >
           {rowVirtualizer.getVirtualItems().map((virtualRow) => {
             const row = data[virtualRow.index];
             return (
-              <tr
+              <div
                 key={virtualRow.index}
                 style={{
                   position: 'absolute',
@@ -51,7 +59,10 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
                   width: '100%',
                   height: `${virtualRow.size}px`,
                   transform: `translateY(${virtualRow.start}px)`,
+                  display: 'grid',
+                  gridTemplateColumns: `repeat(${headers.length}, minmax(150px, 1fr))`
                 }}
+                className={styles.gridRow}
               >
                 {headers.map((header, j) => {
                   let cellValue = row[header];
@@ -59,7 +70,7 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
                     cellValue = JSON.stringify(cellValue);
                   }
                   return (
-                    <td key={j} title={cellValue?.toString() || ''}>
+                    <div key={j} className={styles.gridCell} title={cellValue?.toString() || ''}>
                       <div className={styles.cellContent}>
                         {header === 'crm_status' && cellValue ? (
                           <span className={styles.statusBadge}>{cellValue.toString()}</span>
@@ -69,14 +80,14 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
                           cellValue?.toString() || '-'
                         )}
                       </div>
-                    </td>
+                    </div>
                   );
                 })}
-              </tr>
+              </div>
             );
           })}
-        </tbody>
-      </table>
+        </div>
+      </div>
     </div>
   );
 };

@@ -5,21 +5,19 @@
   background: var(--surface);
 }
 
-.table {
+.gridTable {
   width: 100%;
-  border-collapse: collapse;
   text-align: left;
-  table-layout: fixed;
 }
 
-.table th, .table td {
+.gridHeaderCell, .gridCell {
   padding: 0.5rem 1rem;
   border-bottom: 1px solid var(--border);
   white-space: nowrap;
-  width: 150px; /* Fixed width for better virtualization scrolling */
+  min-width: 0; /* Important for text-overflow to work in flex/grid children */
 }
 
-.table th {
+.gridHeaderCell {
   background-color: var(--surface-hover);
   font-weight: 600;
   position: sticky;
@@ -27,7 +25,7 @@
   z-index: 10;
 }
 
-.table tbody tr:hover {
+.gridRow:hover {
   background-color: var(--surface-hover);
 }
 

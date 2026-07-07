@@ -3,7 +3,7 @@ import { SkippedRecord } from '../types/api.types';
 import { extractCrmDataWithAI } from './ai.service';
 import { logger } from '../utils/logger';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
-import { BatchOutputSchema } from '../utils/import.validator';
+import { BatchOutputSchema, CrmRecordSchema } from '../utils/import.validator';
 
 const MAX_RETRIES = 3;
 
@@ -138,18 +138,22 @@ export const processBatch = async (
             reason: 'No email or mobile number found',
           });
         } else {
-          crmRecords.push(record as CRMRecord);
+          // Strict validation and sanitization
+          const validationResult = CrmRecordSchema.safeParse(record);
+          if (validationResult.success) {
+            crmRecords.push(validationResult.data as CRMRecord);
+          } else {
+            // Strip invalid fields or skip
+            skippedRecords.push({
+              rowIndex,
+              originalData,
+              reason: `Validation failed: ${validationResult.error.errors.map(e => e.message).join(', ')}`
+            });
+          }
         }
       });
 
-      let validatedRecords: any[] = [];
-      try {
-        validatedRecords = BatchOutputSchema.parse(crmRecords);
-      } catch (e) {
-        logger.error('Zod validation failed, using unvalidated', e);
-        validatedRecords = crmRecords;
-      }
-      return { crmRecords: validatedRecords, skippedRecords };
+      return { crmRecords, skippedRecords };
 
     } catch (error: any) {
       attempt++;
