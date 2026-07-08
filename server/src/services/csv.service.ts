@@ -58,8 +58,15 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         papaStream.pause(); // Pause streaming to process batch
         batchIndex++;
         
+        const pingInterval = setInterval(() => {
+          if (!hasError) {
+            res.write(`:\n\n`); // SSE comment acts as a ping
+          }
+        }, 15000);
+
         try {
           const { crmRecords, skippedRecords } = await processBatch(headers, currentBatch, batchIndex, totalRecords);
+          clearInterval(pingInterval);
           allCrmRecords.push(...crmRecords);
           allSkippedDetails.push(...skippedRecords);
           processedRecords += currentBatch.length;
@@ -77,6 +84,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           currentBatch = [];
           papaStream.resume();
         } catch (error: any) {
+          clearInterval(pingInterval);
           logger.error(`Error processing batch ${batchIndex}`, error);
           hasError = true;
           res.write(`data: ${JSON.stringify({
@@ -106,8 +114,14 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       // Process remaining records in the last batch
       if (currentBatch.length > 0) {
         batchIndex++;
+        const pingInterval = setInterval(() => {
+          if (!hasError) res.write(`:\n\n`);
+        }, 15000);
+
         try {
           const { crmRecords, skippedRecords } = await processBatch(headers, currentBatch, batchIndex, totalRecords);
+          clearInterval(pingInterval);
+
           allCrmRecords.push(...crmRecords);
           allSkippedDetails.push(...skippedRecords);
           processedRecords += currentBatch.length;
@@ -121,6 +135,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
             message: `Processed final batch ${batchIndex}`,
           })}\n\n`);
         } catch (error: any) {
+          clearInterval(pingInterval);
           logger.error(`Error processing final batch ${batchIndex}`, error);
           hasError = true;
           res.write(`data: ${JSON.stringify({
