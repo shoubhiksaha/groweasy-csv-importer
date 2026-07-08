@@ -12,7 +12,12 @@ export const importCSV = (
 
     const abortController = new AbortController();
     
-    // Inactivity timeout: abort if no data received for 60 seconds
+    // Ping the backend every 3 minutes to prevent Render's free tier from spinning down due to "inactivity"
+    const keepAwakeInterval = setInterval(() => {
+      fetch(`${API_URL}/`).catch(() => {}); // silent ping
+    }, 180000);
+
+    // Inactivity timeout: abort if no data received for 120 seconds
     let timeout: NodeJS.Timeout;
     const resetTimeout = () => {
       if (timeout) clearTimeout(timeout);
@@ -30,6 +35,7 @@ export const importCSV = (
     }).then(async (response) => {
       if (!response.ok) {
         clearTimeout(timeout);
+        clearInterval(keepAwakeInterval);
         if (response.status === 413) {
            return reject(new Error('File is too large. Maximum 10MB.'));
         }
@@ -43,6 +49,7 @@ export const importCSV = (
 
       if (!response.body) {
         clearTimeout(timeout);
+        clearInterval(keepAwakeInterval);
         return reject(new Error('Response body is empty.'));
       }
 
@@ -77,10 +84,12 @@ export const importCSV = (
                   onProgress(event);
                   if (event.type === 'complete') {
                     clearTimeout(timeout);
+                    clearInterval(keepAwakeInterval);
                     resolve(event.data as ImportResponse['data']);
                     return;
                   } else if (event.type === 'error') {
                     clearTimeout(timeout);
+                    clearInterval(keepAwakeInterval);
                     reject(new Error(event.message));
                     return;
                   }
@@ -93,6 +102,7 @@ export const importCSV = (
 
           if (done) {
             clearTimeout(timeout);
+            clearInterval(keepAwakeInterval);
             // If we reached here without a complete/error event, it's an abnormal stream end
             return reject(new Error('Stream ended without completion event.'));
           }
@@ -100,6 +110,7 @@ export const importCSV = (
           readChunk();
         } catch (error) {
           clearTimeout(timeout);
+          clearInterval(keepAwakeInterval);
           reject(error);
         }
       };
@@ -107,6 +118,7 @@ export const importCSV = (
       readChunk();
     }).catch((err) => {
       clearTimeout(timeout);
+      clearInterval(keepAwakeInterval);
       reject(err);
     });
   });

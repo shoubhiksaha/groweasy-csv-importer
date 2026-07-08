@@ -23,6 +23,7 @@ export default function Home() {
 
   // Import State
   const [progress, setProgress] = useState<ProgressEvent | null>(null);
+  const [importStartTime, setImportStartTime] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<ImportResponse['data'] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
 
@@ -60,6 +61,7 @@ export default function Home() {
     setStep(3);
     setImportError(null);
     setProgress(null);
+    setImportStartTime(Date.now());
     
     try {
       const result = await importCSV(file, (event) => {
@@ -135,14 +137,29 @@ export default function Home() {
             <h2>Processing with AI</h2>
             <p>Please wait while we intelligently map your CSV to our CRM format...</p>
             {progress ? (
-              <ProgressBar 
-                progress={
-                  progress.totalRecords !== '?' && progress.totalRecords !== undefined
-                    ? (progress.processedRecords / (progress.totalRecords as number)) * 100 
-                    : (progress.processedRecords / Math.max(1, totalRows)) * 100 // Estimate based on client parse
-                } 
-                label={progress.message}
-              />
+              <>
+                <ProgressBar 
+                  progress={
+                    progress.totalRecords !== '?' && progress.totalRecords !== undefined
+                      ? (progress.processedRecords / (progress.totalRecords as number)) * 100 
+                      : (progress.processedRecords / Math.max(1, totalRows)) * 100 // Estimate based on client parse
+                  } 
+                  label={progress.message}
+                />
+                <p style={{ marginTop: '0.5rem', fontSize: '0.875rem', color: 'var(--text-muted)' }}>
+                  {(() => {
+                    if (!importStartTime || progress.processedRecords === 0) return 'Estimating time remaining...';
+                    const total = (progress.totalRecords as number) || Math.max(1, totalRows);
+                    const elapsed = Date.now() - importStartTime;
+                    const msPerRecord = elapsed / progress.processedRecords;
+                    const msLeft = msPerRecord * (total - progress.processedRecords);
+                    if (msLeft <= 0) return 'Almost done...';
+                    const mins = Math.floor(msLeft / 60000);
+                    const secs = Math.floor((msLeft % 60000) / 1000);
+                    return `Estimated time remaining: ~${mins}m ${secs}s`;
+                  })()}
+                </p>
+              </>
             ) : (
               <div style={{ margin: '1rem 0', textAlign: 'center' }}>
                 <p>Initializing AI models... this may take a few seconds.</p>

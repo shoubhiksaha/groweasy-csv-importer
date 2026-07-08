@@ -12,6 +12,7 @@ export const handleImport = async (req: Request, res: Response, next: NextFuncti
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
     res.setHeader('Connection', 'keep-alive');
+    res.setHeader('X-Accel-Buffering', 'no'); // CRITICAL: Prevent Nginx from buffering SSE
     res.flushHeaders();
 
     logger.info(`Starting import for file: ${req.file.originalname} (${req.file.size} bytes)`);
