@@ -168,8 +168,19 @@ export const processBatch = async (
         }));
         return { crmRecords: [], skippedRecords };
       }
-      // Exponential backoff
-      await new Promise(res => setTimeout(res, delay));
+      // Exponential backoff or Rate Limit backoff
+      let currentDelay = delay;
+      if (error.message && error.message.includes('429')) {
+        const match = error.message.match(/retry in (\d+(?:\.\d+)?)s/);
+        if (match && match[1]) {
+          currentDelay = (parseFloat(match[1]) + 2) * 1000; // Add 2s buffer
+        } else {
+          currentDelay = 60000; // Default 1 minute for rate limits
+        }
+        logger.warn(`Rate limit hit. Waiting ${currentDelay / 1000}s before attempt ${attempt + 1}...`);
+      }
+      
+      await new Promise(res => setTimeout(res, currentDelay));
       delay *= 2;
     }
   }
