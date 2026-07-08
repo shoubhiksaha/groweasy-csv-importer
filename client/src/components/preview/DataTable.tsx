@@ -73,7 +73,14 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
                     <div key={j} className={styles.gridCell} title={cellValue?.toString() || ''}>
                       <div className={styles.cellContent}>
                         {header === 'crm_status' && cellValue ? (
-                          <span className={styles.statusBadge}>{cellValue.toString()}</span>
+                          <span className={`${styles.statusBadge} ${
+                            cellValue === 'New' ? styles.statusNew :
+                            cellValue === 'Follow_Up' ? styles.statusFollowUp :
+                            cellValue === 'Closed_Won' ? styles.statusClosedWon :
+                            cellValue === 'Closed_Lost' ? styles.statusClosedLost : ''
+                          }`}>
+                            {cellValue.toString().replace('_', ' ')}
+                          </span>
                         ) : header === 'reason' && cellValue ? (
                           <span className={styles.errorBadge}>{cellValue.toString()}</span>
                         ) : (

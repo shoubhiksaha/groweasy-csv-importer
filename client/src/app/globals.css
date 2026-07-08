@@ -15,6 +15,8 @@
   --warning-light: #fef3c7;
   --danger: #ef4444;
   --danger-light: #fee2e2;
+  --info: #3b82f6;
+  --info-light: #dbeafe;
 
   --text-muted: #64748b;
   
@@ -35,6 +37,7 @@
   --success-light: #064e3b;
   --warning-light: #78350f;
   --danger-light: #7f1d1d;
+  --info-light: #1e3a8a;
 
   --text-muted: #94a3b8;
 }

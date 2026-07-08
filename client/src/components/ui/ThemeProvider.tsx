@@ -30,23 +30,21 @@ export const ThemeProvider = ({ children }: { children: React.ReactNode }) => {
   }
 
   return (
-    <div className="theme-wrapper relative">
-      <button 
-        onClick={toggleTheme}
-        style={{
-          position: 'absolute',
-          top: '1rem',
-          right: '2rem',
-          background: 'var(--surface-hover)',
-          border: '1px solid var(--border)',
-          borderRadius: 'var(--radius-md)',
-          padding: '0.5rem 1rem',
-          cursor: 'pointer',
-          zIndex: 100
-        }}
-      >
-        {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
-      </button>
+    <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <div style={{ padding: '1rem 2rem', display: 'flex', justifyContent: 'flex-end' }}>
+        <button 
+          onClick={toggleTheme}
+          style={{
+            background: 'var(--surface-hover)',
+            border: '1px solid var(--border)',
+            borderRadius: 'var(--radius-md)',
+            padding: '0.5rem 1rem',
+            cursor: 'pointer',
+          }}
+        >
+          {theme === 'light' ? '🌙 Dark' : '☀️ Light'}
+        </button>
+      </div>
       {children}
     </div>
   );
