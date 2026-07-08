@@ -88,7 +88,7 @@ export default function Home() {
   };
 
   return (
-    <div className="container">
+    <>
       
       {/* Basic Step Indicator */}
       <div className="flex justify-center gap-4 mb-4">
@@ -144,9 +144,9 @@ export default function Home() {
                 label={progress.message}
               />
             ) : (
-              <div className="my-4 text-center">
+              <div style={{ margin: '1rem 0', textAlign: 'center' }}>
                 <p>Initializing AI models... this may take a few seconds.</p>
-                <div className="animate-spin inline-block w-6 h-6 border-2 border-primary border-t-transparent rounded-full mt-2"></div>
+                <div className="animate-spin" style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', marginTop: '0.5rem' }}></div>
               </div>
             )}
           </Card>
@@ -181,7 +181,9 @@ export default function Home() {
                     data={importResult.skippedDetails.map(sr => ({
                       rowIndex: sr.rowIndex,
                       reason: sr.reason,
-                      originalData: JSON.stringify(sr.originalData)
+                      originalData: typeof sr.originalData === 'object' && sr.originalData !== null 
+                        ? Object.entries(sr.originalData).map(([k,v]) => `${k}: ${v}`).join(' | ') 
+                        : String(sr.originalData)
                     }))} 
                     maxHeight="300px"
                   />
@@ -205,6 +207,6 @@ export default function Home() {
           </Card>
         </div>
       )}
-    </div>
+    </>
   );
 }

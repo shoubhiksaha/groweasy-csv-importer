@@ -38,11 +38,11 @@ const preMapRecord = (record: Record<string, any>) => {
     const k = key.toLowerCase().trim();
     if (!value) continue;
     
-    if (k.match(/^(email|e-mail|mail)$/)) {
+    if (k.match(/^(email|e-mail|mail|user_email|primary_mail)$/) || k.includes('email') || k.includes('mail')) {
       hints.email = value;
-    } else if (k.match(/^(phone|mobile|contact|ph|phone_number|mobile_number)$/)) {
+    } else if (k.match(/^(phone|mobile|contact|ph|phone_number|mobile_number)$/) || k.includes('phone') || k.includes('contact') || k.includes('mobile')) {
       hints.mobile_without_country_code = value;
-    } else if (k.match(/^(name|full_name|client_name|person)$/)) {
+    } else if (k.match(/^(name|full_name|client_name|person|user_name)$/) || k.includes('name')) {
       hints.name = value;
     }
   }

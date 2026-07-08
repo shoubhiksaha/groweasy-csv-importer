@@ -62,7 +62,7 @@ export const processBatch = async (
 
         // Email validation & split
         if (record.email) {
-          const emails = record.email.split(/[,;\s]+/).filter(Boolean);
+          const emails = record.email.split(/[,;]+/).map((e: string) => e.trim()).filter(Boolean);
           if (emails.length > 0) {
             const firstEmail = emails[0];
             const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
@@ -126,30 +126,30 @@ export const processBatch = async (
         // Newline escaping for all string fields
         for (const key of Object.keys(record)) {
           if (typeof record[key] === 'string') {
-            record[key] = record[key].replace(/\n/g, ' ');
+            record[key] = record[key].replace(/\r?\n/g, '\\n');
           }
         }
 
-        // Skip rule: skip if NO email AND NO mobile
-        if (!record.email && !record.mobile_without_country_code) {
-          skippedRecords.push({
-            rowIndex,
-            originalData,
-            reason: 'No email or mobile number found',
-          });
-        } else {
-          // Strict validation and sanitization
-          const validationResult = CrmRecordSchema.safeParse(record);
-          if (validationResult.success) {
-            crmRecords.push(validationResult.data as CRMRecord);
-          } else {
-            // Strip invalid fields or skip
+        // Strict validation and sanitization
+        const validationResult = CrmRecordSchema.safeParse(record);
+        if (validationResult.success) {
+          const finalRecord = validationResult.data as CRMRecord;
+          if (!finalRecord.email && !finalRecord.mobile_without_country_code) {
             skippedRecords.push({
               rowIndex,
               originalData,
-              reason: `Validation failed: ${validationResult.error.issues.map(e => e.message).join(', ')}`
+              reason: 'No valid email or mobile number found',
             });
+          } else {
+            crmRecords.push(finalRecord);
           }
+        } else {
+          // Strip invalid fields or skip
+          skippedRecords.push({
+            rowIndex,
+            originalData,
+            reason: `Validation failed: ${validationResult.error.issues.map(e => e.message).join(', ')}`
+          });
         }
       });
 

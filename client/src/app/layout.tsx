@@ -22,12 +22,14 @@ export default function RootLayout({
     <html lang="en">
       <body className={inter.variable}>
         <ThemeProvider>
-          <main style={{ padding: '2rem', maxWidth: '1200px', margin: '0 auto' }}>
-            <header style={{ marginBottom: '2rem' }}>
-              <h1 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>Groweasy CRM Importer</h1>
-              <p style={{ color: 'var(--text-muted)' }}>Upload messy CSVs and let AI standardize them.</p>
-            </header>
-            {children}
+          <main>
+            <div className="container">
+              <header style={{ marginBottom: '2rem' }}>
+                <h1 style={{ fontSize: '2rem', fontWeight: 700, margin: 0 }}>Groweasy CRM Importer</h1>
+                <p style={{ color: 'var(--text-muted)' }}>Upload messy CSVs and let AI standardize them.</p>
+              </header>
+              {children}
+            </div>
           </main>
         </ThemeProvider>
       </body>

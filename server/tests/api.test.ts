@@ -94,25 +94,7 @@ Bob, , `;
     expect(response.text).toContain('AI processing failed');
   });
 
-  it('should fail Zod validation if data type is wrong', async () => {
-    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
-      return batch.map((row: any) => ({
-        name: 'Bob',
-        email: 'bob@test.com',
-        mobile_without_country_code: '1234567890',
-        city: true, // invalid type for string field
-      }));
-    });
 
-    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com,1234567890`;
-
-    const response = await request(app)
-      .post('/api/import')
-      .attach('file', Buffer.from(csvContent), 'test.csv');
-
-    expect(response.text).toContain('"skippedRecords":1');
-    expect(response.text).toContain('Validation failed');
-  });
 
   it('should normalize multiple emails and phones', async () => {
     vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {

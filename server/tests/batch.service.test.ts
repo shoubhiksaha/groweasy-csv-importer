@@ -60,6 +60,6 @@ describe('batch.service', () => {
 
     expect(result.crmRecords).toHaveLength(0);
     expect(result.skippedRecords).toHaveLength(1);
-    expect(result.skippedRecords[0].reason).toBe('No email or mobile number found');
+    expect(result.skippedRecords[0].reason).toBe('No valid email or mobile number found');
   });
 });

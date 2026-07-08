@@ -22,6 +22,7 @@ app.use(express.json({ limit: '50mb' }));
 
 // Routes
 app.use('/api/import', importRoutes);
+app.get('/', (req, res) => res.json({ status: 'ok', service: 'groweasy-csv-importer-api' }));
 
 // Global Error Handler
 app.use(errorHandler);

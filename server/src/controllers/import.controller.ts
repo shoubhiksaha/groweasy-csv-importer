@@ -17,14 +17,9 @@ export const handleImport = async (req: Request, res: Response, next: NextFuncti
 
     logger.info(`Starting import for file: ${req.file.originalname} (${req.file.size} bytes)`);
 
-    // Quick parse to get accurate total records for progress bar
+    // Fast newline split for estimated record count (subtract 1 for header)
     const fileString = req.file.buffer.toString('utf-8');
-    
-    const parsed = Papa.parse(fileString, {
-      header: true,
-      skipEmptyLines: true,
-    });
-    const totalRecordsCount = parsed.data.length;
+    const totalRecordsCount = Math.max(0, fileString.split(/\r\n|\n|\r/).filter(l => l.trim().length > 0).length - 1);
 
     // The parseCSVStream service will handle batching, calling AI, and writing SSE events
     await parseCSVStream(req.file.buffer, res, totalRecordsCount);
