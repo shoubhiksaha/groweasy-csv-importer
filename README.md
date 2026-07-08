@@ -21,8 +21,8 @@ At the root directory, you can use these commands:
 
 ## Implementation Details
 
-- **Frontend (Next.js)**: Drag & Drop upload with PapaParse stream processing. The initial preview displays only the first 100 rows to ensure UI responsiveness. The "Confirm Import" pushes the entire file to the backend API.
-- **Backend (Express)**: Receives the file via Multer (max 10MB CSV), parses it chunk by chunk, and dispatches batches to Gemini.
+- **Frontend (Next.js)**: Drag & Drop upload with a lightweight PapaParse chunked preview. The initial preview parses and displays only the first 100 rows to ensure UI responsiveness. The "Confirm Import" pushes the entire file buffer to the backend API.
+- **Backend (Express)**: Receives the file via Multer (max 10MB CSV), parses it chunk by chunk using `Papa.NODE_STREAM_INPUT`, and dispatches batches to Gemini.
 - **AI Processing**: Gemini 2.5 Flash maps fields into standard headers. It employs an exponential backoff retry mechanism (up to 3 tries per batch).
 - **Validation**: Strict row-by-row Zod schema parsing guarantees valid output shapes, dropping invalid rows into a skipped records list instead of failing entire batches.
 - **Progress Tracking**: Uses SSE (Server-Sent Events) to provide real-time batch completion percentages to the frontend.
@@ -66,6 +66,7 @@ Run the backend unit tests:
 ```bash
 npm test
 ```
+*Note: The API tests bind a local listener via Supertest. Ensure your environment allows local listening if running in a restricted sandbox.*
 
 You can find 6 diverse test CSVs (including a 5000-row stress test and messy formats like Facebook/Google Ads exports) in the `test/` directory.
 
@@ -73,7 +74,10 @@ You can find 6 diverse test CSVs (including a 5000-row stress test and messy for
 The application is structured as a monorepo and can be deployed easily:
 - **Live Demo**: [https://groweasy-csv-importer-client.vercel.app/](https://groweasy-csv-importer-client.vercel.app/)
 - **Frontend (Vercel)**: Point Vercel to the `client/` directory and set `NEXT_PUBLIC_API_URL` to your backend URL.
-- **Backend (Render/Railway)**: Point to the `server/` directory. Run `npm run build` and start with `npm start`. Ensure you set `GEMINI_API_KEY` and `CLIENT_URL` (for CORS).
+- **Backend (Render/Railway)**: Point to the `server/` directory. Run `npm run build` and start with `npm start`. Ensure you set `GEMINI_API_KEY` and `CLIENT_URL` (for CORS, though we allow `*` by default for ease of testing).
 
 ## ⚠️ Known Limitations
-- The AI batch processing size is currently set to 25 to balance rate limits and speed. For extremely large files (e.g. 100k+ rows) on a free Gemini tier, this may take time or hit API limits. We use exponential backoff to handle 429 Too Many Requests seamlessly.
+- **Rate Limits**: The AI batch processing size is currently set to 25 to balance rate limits and speed. For extremely large files (e.g. 100k+ rows) on a free Gemini tier, this may take time or hit API limits. We use exponential backoff to handle 429 Too Many Requests seamlessly.
+- **NPM Audit Warning**: Running `npm audit` will report a moderate advisory related to `postcss` inside the Next.js dependency tree. This is an upstream advisory in Next.js and has been deliberately left untouched to avoid breaking the build with force-downgrades.
+- **Phone Parsing Bias**: The fallback phone number parsing (`libphonenumber-js`) defaults to India (`IN`) to handle GrowEasy sample data effectively. International numbers might parse imperfectly without an explicit country code.
+- **Progress Tracking Accuracy**: The progress bar updates per-batch using a pre-calculated total record count. While highly accurate, the exact percentage reflects batch completion rather than per-row granularity.

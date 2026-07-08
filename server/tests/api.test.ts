@@ -20,8 +20,8 @@ vi.mock('../src/services/ai.service', () => ({
 const app = express();
 app.post('/api/import', uploadMiddleware.single('file'), async (req, res, next) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ message: 'No file uploaded' });
+    if (!req.file || req.file.size === 0 || req.file.buffer.length === 0) {
+      return res.status(400).json({ success: false, message: 'No file uploaded or file is empty' });
     }
     res.setHeader('Content-Type', 'text/event-stream');
     res.setHeader('Cache-Control', 'no-cache');
@@ -71,8 +71,8 @@ Bob, , `;
       .post('/api/import')
       .attach('file', Buffer.from(csvContent), 'empty.csv');
 
-    expect(response.text).toContain('"type":"error"');
-    expect(response.text).toContain('CSV file is empty or contains no headers');
+    expect(response.status).toBe(400);
+    expect(response.text).toContain('No file uploaded or file is empty');
   });
 
   it('should handle AI row-count mismatch and skip batch', async () => {

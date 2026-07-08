@@ -2,11 +2,10 @@ import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai';
 import { getSystemPrompt } from '../prompts/extraction.prompt';
 
 const getGenAI = () => {
-  const apiKey = process.env.GEMINI_API_KEY;
-  if (!apiKey) {
-    throw new Error('AI key not configured');
+  if (!process.env.GEMINI_API_KEY) {
+    throw new Error('GEMINI_API_KEY is not set in environment variables.');
   }
-  return new GoogleGenerativeAI(apiKey);
+  return new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 };
 
 const crmRecordSchema: Schema = {

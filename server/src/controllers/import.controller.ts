@@ -5,8 +5,8 @@ import { parseCSVStream } from '../services/csv.service';
 
 export const handleImport = async (req: Request, res: Response, next: NextFunction) => {
   try {
-    if (!req.file) {
-      return res.status(400).json({ success: false, message: 'No file uploaded' });
+    if (!req.file || req.file.size === 0 || req.file.buffer.length === 0) {
+      return res.status(400).json({ success: false, message: 'No file uploaded or file is empty' });
     }
 
     // Set headers for SSE
