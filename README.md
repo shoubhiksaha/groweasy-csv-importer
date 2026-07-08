@@ -71,7 +71,7 @@ You can find 6 diverse test CSVs (including a 5000-row stress test and messy for
 
 ## 📦 Deployment
 The application is structured as a monorepo and can be deployed easily:
-- **Live Demo**: [Insert Live Demo URL Here]
+- **Live Demo**: [https://groweasy-csv-importer-client.vercel.app/](https://groweasy-csv-importer-client.vercel.app/)
 - **Frontend (Vercel)**: Point Vercel to the `client/` directory and set `NEXT_PUBLIC_API_URL` to your backend URL.
 - **Backend (Render/Railway)**: Point to the `server/` directory. Run `npm run build` and start with `npm start`. Ensure you set `GEMINI_API_KEY` and `CLIENT_URL` (for CORS).
 
