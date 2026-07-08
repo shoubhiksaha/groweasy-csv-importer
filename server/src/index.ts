@@ -14,8 +14,10 @@ const app = express();
 const PORT = process.env.PORT || 3001;
 
 // Middleware
-const allowedOrigins = (process.env.CLIENT_URL || 'http://localhost:3000').split(',').map(url => url.trim());
-app.use(cors({ origin: allowedOrigins }));
+const corsOptions = process.env.CLIENT_URL 
+  ? { origin: process.env.CLIENT_URL.split(',').map(url => url.trim()) }
+  : { origin: '*' }; // Allow all if not specified to make deployment easier
+app.use(cors(corsOptions));
 app.use(express.json({ limit: '50mb' }));
 
 // Routes
