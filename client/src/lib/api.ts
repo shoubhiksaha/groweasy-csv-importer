@@ -17,24 +17,12 @@ export const importCSV = (
       fetch(`${API_URL}/`).catch(() => {}); // silent ping
     }, 180000);
 
-    // Inactivity timeout: abort if no data received for 120 seconds
-    let timeout: NodeJS.Timeout;
-    const resetTimeout = () => {
-      if (timeout) clearTimeout(timeout);
-      timeout = setTimeout(() => {
-        abortController.abort();
-        reject(new Error('Import request timed out due to inactivity.'));
-      }, 120000); // 120 seconds
-    };
-    resetTimeout();
-
     fetch(`${API_URL}/api/import`, {
       method: 'POST',
       body: formData,
       signal: abortController.signal,
     }).then(async (response) => {
       if (!response.ok) {
-        clearTimeout(timeout);
         clearInterval(keepAwakeInterval);
         if (response.status === 413) {
            return reject(new Error('File is too large. Maximum 10MB.'));
@@ -48,60 +36,48 @@ export const importCSV = (
       }
 
       if (!response.body) {
-        clearTimeout(timeout);
         clearInterval(keepAwakeInterval);
         return reject(new Error('Response body is empty.'));
       }
 
       const reader = response.body.getReader();
-      const decoder = new TextDecoder('utf-8');
-      
+      const decoder = new TextDecoder();
       let buffer = '';
 
       const readChunk = async () => {
         try {
           const { done, value } = await reader.read();
-          resetTimeout();
-          
-          if (value) {
-            buffer += decoder.decode(value, { stream: !done });
-          }
 
-          if (buffer) {
+          if (value) {
+            const chunk = decoder.decode(value, { stream: true });
+            buffer += chunk;
+
             const parts = buffer.split('\n\n');
-            // If done is true, process all parts, otherwise keep the last incomplete part in buffer
-            if (!done) {
-              buffer = parts.pop() || '';
-            } else {
-              buffer = '';
-            }
+            buffer = parts.pop() || ''; // Keep the incomplete part in the buffer
 
             for (const part of parts) {
-              if (part.trim().startsWith('data: ')) {
-                const dataStr = part.trim().slice(6);
+              if (part.startsWith('data: ')) {
+                const dataStr = part.slice(6);
                 try {
-                  const event: ProgressEvent = JSON.parse(dataStr);
+                  const event = JSON.parse(dataStr);
                   onProgress(event);
                   if (event.type === 'complete') {
-                    clearTimeout(timeout);
                     clearInterval(keepAwakeInterval);
                     resolve(event.data as ImportResponse['data']);
                     return;
                   } else if (event.type === 'error') {
-                    clearTimeout(timeout);
                     clearInterval(keepAwakeInterval);
                     reject(new Error(event.message));
                     return;
                   }
                 } catch (e) {
-                  console.error('Failed to parse SSE event', e);
+                  console.error('Failed to parse SSE JSON', e);
                 }
               }
             }
           }
 
           if (done) {
-            clearTimeout(timeout);
             clearInterval(keepAwakeInterval);
             // If we reached here without a complete/error event, it's an abnormal stream end
             return reject(new Error('Stream ended without completion event.'));
@@ -109,7 +85,6 @@ export const importCSV = (
 
           readChunk();
         } catch (error) {
-          clearTimeout(timeout);
           clearInterval(keepAwakeInterval);
           reject(error);
         }
@@ -117,7 +92,6 @@ export const importCSV = (
 
       readChunk();
     }).catch((err) => {
-      clearTimeout(timeout);
       clearInterval(keepAwakeInterval);
       reject(err);
     });
