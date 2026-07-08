@@ -11,10 +11,17 @@ export const importCSV = (
     formData.append('file', file);
 
     const abortController = new AbortController();
-    const timeout = setTimeout(() => {
-      abortController.abort();
-      reject(new Error('Import request timed out.'));
-    }, 600000); // 10 minute timeout for large files
+    
+    // Inactivity timeout: abort if no data received for 60 seconds
+    let timeout: NodeJS.Timeout;
+    const resetTimeout = () => {
+      if (timeout) clearTimeout(timeout);
+      timeout = setTimeout(() => {
+        abortController.abort();
+        reject(new Error('Import request timed out due to inactivity.'));
+      }, 120000); // 120 seconds
+    };
+    resetTimeout();
 
     fetch(`${API_URL}/api/import`, {
       method: 'POST',
@@ -47,6 +54,7 @@ export const importCSV = (
       const readChunk = async () => {
         try {
           const { done, value } = await reader.read();
+          resetTimeout();
           
           if (value) {
             buffer += decoder.decode(value, { stream: !done });
