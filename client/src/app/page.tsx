@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from 'react';
+import React, { useState, useRef } from 'react';
 import Papa from 'papaparse';
 import { DropZone } from '@/components/upload/DropZone';
 import { DataTable } from '@/components/preview/DataTable';
@@ -26,6 +26,8 @@ export default function Home() {
   const [importStartTime, setImportStartTime] = useState<number | null>(null);
   const [importResult, setImportResult] = useState<ImportResponse['data'] | null>(null);
   const [importError, setImportError] = useState<string | null>(null);
+  
+  const abortControllerRef = useRef<AbortController | null>(null);
 
   const handleFileSelect = (selectedFile: File) => {
     setFile(selectedFile);
@@ -63,19 +65,35 @@ export default function Home() {
     setProgress(null);
     setImportStartTime(Date.now());
     
+    abortControllerRef.current = new AbortController();
+    
     try {
-      const result = await importCSV(file, (event) => {
-        setProgress(event);
-      });
+      const result = await importCSV(
+        file, 
+        (event) => setProgress(event),
+        abortControllerRef.current
+      );
       setImportResult(result);
       setStep(4);
     } catch (error: unknown) {
       if (error instanceof Error) {
-        setImportError(error.message);
+        if (error.name === 'AbortError') {
+          setImportError('Import cancelled by user.');
+        } else {
+          setImportError(error.message);
+        }
       } else {
         setImportError('An error occurred during import.');
       }
       setStep(2); // Go back to preview
+    } finally {
+      abortControllerRef.current = null;
+    }
+  };
+
+  const handleCancelImport = () => {
+    if (abortControllerRef.current) {
+      abortControllerRef.current.abort();
     }
   };
 
@@ -117,7 +135,7 @@ export default function Home() {
         <div className="animate-fade-in">
           <Card>
             <h2>Preview: {file?.name}</h2>
-            <p>Showing first {totalRows} records (full file will be imported)...</p>
+            <p>Showing first {Math.min(totalRows, 100)} records (full file will be imported)...</p>
             {isParsing ? (
               <p>Parsing...</p>
             ) : (
@@ -166,6 +184,9 @@ export default function Home() {
                 <div className="animate-spin" style={{ display: 'inline-block', width: '24px', height: '24px', border: '3px solid var(--primary)', borderTopColor: 'transparent', borderRadius: '50%', marginTop: '0.5rem' }}></div>
               </div>
             )}
+            <div className="mt-4">
+              <Button variant="secondary" onClick={handleCancelImport}>Cancel Import</Button>
+            </div>
           </Card>
         </div>
       )}

@@ -7,6 +7,47 @@ import { inferColumnMappingWithAI } from './ai.service';
 import { SkippedRecord } from '../types/api.types';
 import { CRMRecord } from '../types/crm.types';
 
+/**
+ * Deterministic header-to-CRM field mapping used as a fallback when AI is unavailable.
+ * Matches CSV headers to CRM fields using keyword heuristics.
+ */
+const deterministicFallbackMapping = (headers: string[]): Record<string, string | null> => {
+  const crmFields: Record<string, string[]> = {
+    name: ['name', 'full name', 'fullname', 'contact name', 'lead name', 'customer'],
+    email: ['email', 'e-mail', 'mail', 'email address', 'emailid', 'contact info', 'contact'],
+    country_code: ['country code', 'countrycode', 'dial code', 'phone code'],
+    mobile_without_country_code: ['phone', 'mobile', 'cell', 'telephone', 'contact number', 'phone number', 'mobile number', 'contact info'],
+    company: ['company', 'organization', 'org', 'firm', 'business'],
+    city: ['city', 'town'],
+    state: ['state', 'province', 'region'],
+    country: ['country', 'nation'],
+    lead_owner: ['owner', 'lead owner', 'assigned to', 'agent', 'sales rep'],
+    crm_status: ['status', 'lead status', 'stage', 'disposition'],
+    crm_note: ['note', 'notes', 'comment', 'comments', 'remark', 'remarks'],
+    data_source: ['source', 'lead source', 'data source', 'campaign', 'origin'],
+    created_at: ['date', 'created', 'created at', 'created_at', 'timestamp', 'created date'],
+    possession_time: ['possession', 'possession time', 'move in'],
+    description: ['description', 'desc', 'details', 'about'],
+  };
+
+  const mapping: Record<string, string | null> = {};
+  const lowerHeaders = headers.map(h => h.toLowerCase().trim());
+
+  for (const [field, keywords] of Object.entries(crmFields)) {
+    let matched: string | null = null;
+    for (const keyword of keywords) {
+      const idx = lowerHeaders.findIndex(h => h === keyword || h.includes(keyword));
+      if (idx !== -1) {
+        matched = headers[idx]; // Use original casing
+        break;
+      }
+    }
+    mapping[field] = matched;
+  }
+
+  return mapping;
+};
+
 export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCount: number): Promise<void> => {
   return new Promise((resolve, reject) => {
     const stream = Readable.from(fileBuffer);
@@ -72,7 +113,12 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         try {
           if (!columnMapping) {
             const sampleRows = currentBatch.slice(0, 5);
-            columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+            try {
+              columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+            } catch (aiError: any) {
+              logger.error('AI mapping failed, using deterministic fallback', aiError);
+              columnMapping = deterministicFallbackMapping(headers);
+            }
           }
 
           const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
@@ -110,7 +156,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     });
 
     papaStream.on('error', (err: any) => {
-      console.error("MY_ERROR", 'PapaParse stream error', err);
+      logger.error('PapaParse stream error', err);
       hasError = true;
       res.write(`data: ${JSON.stringify({
         type: 'error',
@@ -137,7 +183,12 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         try {
           if (!columnMapping) {
             const sampleRows = currentBatch.slice(0, 5);
-            columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+            try {
+              columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+            } catch (aiError: any) {
+              logger.error('AI mapping failed, using deterministic fallback', aiError);
+              columnMapping = deterministicFallbackMapping(headers);
+            }
           }
 
           const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);

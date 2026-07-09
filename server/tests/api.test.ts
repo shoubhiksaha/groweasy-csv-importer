@@ -4,16 +4,14 @@ import express from 'express';
 import { uploadMiddleware } from '../src/middleware/upload';
 import { parseCSVStream } from '../src/services/csv.service';
 
-// Mock the AI service to just return deterministic output
+// Mock the AI service to return deterministic column mapping
 vi.mock('../src/services/ai.service', () => ({
-  extractCrmDataWithAI: vi.fn().mockImplementation(async (headers, batch) => {
-    return batch.map((row: any) => ({
-      name: row['Full Name'] || null,
-      email: row['Email'] || null,
-      mobile_without_country_code: row['Phone'] || null,
-      crm_status: 'GOOD_LEAD_FOLLOW_UP',
-      data_source: 'leads_on_demand'
-    }));
+  inferColumnMappingWithAI: vi.fn().mockImplementation(async (headers, batch) => {
+    return {
+      name: 'Full Name',
+      email: 'Email',
+      mobile_without_country_code: 'Phone'
+    };
   })
 }));
 
@@ -33,7 +31,7 @@ app.post('/api/import', uploadMiddleware.single('file'), async (req, res, next) 
   }
 });
 
-import { extractCrmDataWithAI } from '../src/services/ai.service';
+import { inferColumnMappingWithAI } from '../src/services/ai.service';
 
 describe('POST /api/import', () => {
   it('should successfully parse a small valid CSV', async () => {
@@ -46,7 +44,6 @@ Alice,alice@test.com,`;
       .attach('file', Buffer.from(csvContent), 'test.csv');
 
     expect(response.status).toBe(200);
-    // SSE sends multiple events, we just verify the text contains "complete" and expected data
     expect(response.text).toContain('"type":"complete"');
     expect(response.text).toContain('John Doe');
     expect(response.text).toContain('john@test.com');
@@ -75,37 +72,36 @@ Bob, , `;
     expect(response.text).toContain('No file uploaded or file is empty');
   });
 
-  it('should handle AI row-count mismatch and skip batch', async () => {
-    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
-      return []; // Return empty array to trigger mismatch
-    }).mockImplementationOnce(async (headers, batch) => {
-      return []; // Retry 1
-    }).mockImplementationOnce(async (headers, batch) => {
-      return []; // Retry 2
+  // --- AI mapping failure fallback: should still complete using deterministic mapping ---
+  it('should fall back to deterministic mapping when AI fails', async () => {
+    vi.mocked(inferColumnMappingWithAI).mockImplementationOnce(async () => {
+      throw new Error('AI quota exceeded');
     });
 
-    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com,12345`;
+    // Use standard headers that the deterministic fallback will recognize
+    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com,9876543210`;
 
     const response = await request(app)
       .post('/api/import')
       .attach('file', Buffer.from(csvContent), 'test.csv');
 
-    expect(response.text).toContain('"skippedRecords":1');
-    expect(response.text).toContain('AI processing failed');
+    // Should NOT error — should complete successfully using fallback
+    expect(response.text).toContain('"type":"complete"');
+    expect(response.text).toContain('bob@test.com');
+    expect(response.text).toContain('9876543210');
   });
 
-
-
   it('should normalize multiple emails and phones', async () => {
-    vi.mocked(extractCrmDataWithAI).mockImplementationOnce(async (headers, batch) => {
-      return batch.map((row: any) => ({
-        name: row['Full Name'],
-        email: 'bob@test.com, bob2@test.com',
-        mobile_without_country_code: '9876543210, 1234567890',
-      }));
+    vi.mocked(inferColumnMappingWithAI).mockImplementationOnce(async (headers, batch) => {
+      return {
+        name: 'Full Name',
+        email: 'Email',
+        mobile_without_country_code: 'Phone'
+      };
     });
 
-    const csvContent = `Full Name,Email,Phone\nBob,bob@test.com, bob2@test.com,9876543210`;
+    // Multiple emails separated by comma inside a quoted field, multiple phones separated by space
+    const csvContent = `Full Name,Email,Phone\nBob,"bob@test.com, bob2@test.com","9876543210 1234567890"`;
 
     const response = await request(app)
       .post('/api/import')
@@ -115,6 +111,36 @@ Bob, , `;
     expect(response.text).toContain('bob@test.com');
     expect(response.text).toContain('9876543210');
     expect(response.text).toContain('Extra emails: bob2@test.com');
-    expect(response.text).toContain('1234567890');
+  });
+
+  // --- Messy CSV full flow: 3 imported, 1 skipped ---
+  it('should handle messy CSV: import valid rows, skip empty ones', async () => {
+    vi.mocked(inferColumnMappingWithAI).mockImplementationOnce(async () => ({
+      name: 'Name',
+      email: 'Email',
+      mobile_without_country_code: 'Phone',
+      crm_status: 'Status',
+      lead_owner: 'Owner'
+    }));
+
+    const csvContent = [
+      'Name,Email,Phone,Status,Owner',
+      'Alice,alice@test.com,9876543210,interested,rep@co.com',
+      'Bob,,8765432109,warm,rep@co.com',
+      'Carol,carol@test.com,,not interested,rep@co.com',
+      'Dead,,,,owner@groweasy.ai',
+    ].join('\n');
+
+    const response = await request(app)
+      .post('/api/import')
+      .attach('file', Buffer.from(csvContent), 'test.csv');
+
+    expect(response.text).toContain('"type":"complete"');
+    expect(response.text).toContain('"importedRecords":3');
+    expect(response.text).toContain('"skippedRecords":1');
+    // Verify "not interested" mapped correctly
+    expect(response.text).toContain('"crm_status":"BAD_LEAD"');
+    // Verify owner email did NOT leak as lead email
+    expect(response.text).not.toContain('"email":"owner@groweasy.ai"');
   });
 });

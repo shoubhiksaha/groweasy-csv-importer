@@ -1,5 +1,4 @@
 import { GoogleGenerativeAI, Schema, SchemaType } from '@google/generative-ai';
-import { getSystemPrompt } from '../prompts/extraction.prompt';
 
 const getGenAI = () => {
   if (!process.env.GEMINI_API_KEY) {

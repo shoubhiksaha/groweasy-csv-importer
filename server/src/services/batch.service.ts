@@ -1,6 +1,5 @@
 import { CRMRecord } from '../types/crm.types';
 import { SkippedRecord } from '../types/api.types';
-import { logger } from '../utils/logger';
 import { parsePhoneNumberFromString } from 'libphonenumber-js';
 import { CrmRecordSchema } from '../utils/import.validator';
 
@@ -31,19 +30,22 @@ export const processBatchLocal = (
     
     const rowIndex = totalRecordsStart - batch.length + index + 1;
 
-    // Sanitize enums
+    // Sanitize enums — check negative/specific patterns BEFORE broad positive ones
     const validStatuses = ['GOOD_LEAD_FOLLOW_UP', 'DID_NOT_CONNECT', 'BAD_LEAD', 'SALE_DONE'];
-    // Try to map obvious strings to statuses
     if (record.crm_status) {
        const statusStr = record.crm_status.toUpperCase();
-       if (statusStr.includes('INTERESTED') || statusStr.includes('FOLLOW')) {
-         record.crm_status = 'GOOD_LEAD_FOLLOW_UP';
-       } else if (statusStr.includes('NOT CONNECT') || statusStr.includes('NO ANSWER')) {
-         record.crm_status = 'DID_NOT_CONNECT';
-       } else if (statusStr.includes('BAD') || statusStr.includes('NOT INTERESTED') || statusStr.includes('INVALID')) {
+       // Negative patterns first ("not interested" must not match "interested")
+       if (statusStr.includes('NOT INTERESTED') || statusStr.includes('BAD') || statusStr.includes('INVALID') || statusStr.includes('SPAM') || statusStr.includes('WRONG') || statusStr.includes('JUNK')) {
          record.crm_status = 'BAD_LEAD';
-       } else if (statusStr.includes('SALE') || statusStr.includes('DONE')) {
+       } else if (statusStr.includes('NOT CONNECT') || statusStr.includes('NO ANSWER') || statusStr.includes('UNREACHABLE') || statusStr.includes('BUSY') || statusStr.includes('NO RESPONSE')) {
+         record.crm_status = 'DID_NOT_CONNECT';
+       } else if (statusStr.includes('CLOSED') && (statusStr.includes('LOST') || statusStr.includes('REJECT'))) {
+         // "closed lost" / "closed rejected" is NOT a sale
+         record.crm_status = 'BAD_LEAD';
+       } else if (statusStr.includes('SALE') || statusStr.includes('WON') || statusStr.includes('CONVERTED') || statusStr.includes('PURCHASED') || (statusStr.includes('CLOSED') && !statusStr.includes('LOST'))) {
          record.crm_status = 'SALE_DONE';
+       } else if (statusStr.includes('INTERESTED') || statusStr.includes('FOLLOW') || statusStr.includes('WARM') || statusStr.includes('HOT') || statusStr.includes('QUALIFIED')) {
+         record.crm_status = 'GOOD_LEAD_FOLLOW_UP';
        }
        if (!validStatuses.includes(record.crm_status)) {
          record.crm_status = null;
@@ -52,12 +54,16 @@ export const processBatchLocal = (
 
     const validSources = ['leads_on_demand', 'meridian_tower', 'eden_park', 'varah_swamy', 'sarjapur_plots'];
     if (record.data_source) {
+       // Strip non-alphanumeric, require at least 3 meaningful chars to avoid noisy matches
+       const normalizedSource = record.data_source.toLowerCase().replace(/[^a-z0-9]/g, '_').replace(/^_+|_+$/g, '');
        let matched = false;
-       for (const source of validSources) {
-         if (record.data_source.toLowerCase().includes(source)) {
-           record.data_source = source;
-           matched = true;
-           break;
+       if (normalizedSource.length >= 3) {
+         for (const source of validSources) {
+           if (normalizedSource.includes(source)) {
+             record.data_source = source;
+             matched = true;
+             break;
+           }
          }
        }
        if (!matched) record.data_source = null;
@@ -73,63 +79,105 @@ export const processBatchLocal = (
       }
     }
 
-    // Email validation & split
-    if (record.email) {
-      const emails = record.email.split(/[,;]+/).map((e: string) => e.trim()).filter(Boolean);
-      if (emails.length > 0) {
-        const firstEmail = emails[0];
-        const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
-        if (emailRegex.test(firstEmail)) {
-          record.email = firstEmail;
-          if (emails.length > 1) {
-            const extraEmails = emails.slice(1).join(', ');
-            record.crm_note = record.crm_note ? `${record.crm_note} | Extra emails: ${extraEmails}` : `Extra emails: ${extraEmails}`;
+    // Build a restricted fallback text from ONLY mapped contact columns (email, phone, notes, description)
+    // to avoid importing owner emails / unrelated fields as lead contact info.
+    const contactColumns = new Set<string>();
+    for (const field of ['email', 'mobile_without_country_code', 'crm_note', 'description']) {
+      const col = columnMapping[field];
+      if (col) contactColumns.add(col);
+    }
+    const contactRawValues = Object.entries(originalData)
+      .filter(([key]) => contactColumns.has(key))
+      .map(([, val]) => val)
+      .join(' ');
+
+    // Email extraction & fallback (scans mapped email + contact columns only)
+    const textToScanForEmail = (record.email || '') + ' ' + contactRawValues;
+    const emailMatches = textToScanForEmail.match(/[a-zA-Z0-9._-]+@[a-zA-Z0-9._-]+\.[a-zA-Z0-9_-]+/g);
+    if (emailMatches && emailMatches.length > 0) {
+      const uniqueEmails = Array.from(new Set(emailMatches));
+      record.email = uniqueEmails[0];
+      if (uniqueEmails.length > 1) {
+        const extraEmails = uniqueEmails.slice(1).join(', ');
+        record.crm_note = record.crm_note ? `${record.crm_note} | Extra emails: ${extraEmails}` : `Extra emails: ${extraEmails}`;
+      }
+    } else {
+      record.email = null;
+    }
+
+    // Phone extraction & fallback (scans mapped phone + contact columns only)
+    const textToScanForPhone = (record.mobile_without_country_code || '') + ' ' + contactRawValues;
+    // Two-stage phone extraction:
+    // 1. Match any run of digits, spaces, hyphens, dots, parens, optionally prefixed with +
+    // 2. Filter to candidates with 10+ digits (a real phone number)
+    // 3. Split over-long candidates (>15 digits per ITU max) by treating them as multiple numbers
+    const rawPhoneCandidates = textToScanForPhone.match(/\+?[\d\s\-().]{7,}/g) || [];
+    const phoneMatches: string[] = [];
+    for (const candidate of rawPhoneCandidates) {
+      const digitCount = candidate.replace(/\D/g, '').length;
+      if (digitCount < 10) continue;
+      if (digitCount <= 15) {
+        phoneMatches.push(candidate.trim());
+      } else {
+        // Likely multiple numbers jammed together — split on common delimiters or whitespace gaps
+        const subCandidates = candidate.split(/[,;\/]+|(?<=\d)\s{2,}(?=\d)/).map(s => s.trim()).filter(Boolean);
+        if (subCandidates.length > 1) {
+          for (const sub of subCandidates) {
+            if (sub.replace(/\D/g, '').length >= 10) phoneMatches.push(sub);
           }
         } else {
-          record.email = null;
+          // Try splitting pure digit string into 10-digit chunks
+          const allDigits = candidate.replace(/\D/g, '');
+          for (let i = 0; i + 10 <= allDigits.length; i += 10) {
+            phoneMatches.push(allDigits.slice(i, i + 10));
+          }
         }
       }
     }
-
-    // Phone fallback & split
-    if (record.mobile_without_country_code) {
-       const phones = record.mobile_without_country_code.split(/[,;\/]+/).filter(Boolean);
-       let mainPhoneStr = phones[0];
-       const fullPhoneToParse = (record.country_code || '') + mainPhoneStr;
-       const parsedPhone = parsePhoneNumberFromString(fullPhoneToParse, 'IN');
-       
-       if (parsedPhone && parsedPhone.isValid()) {
-         record.country_code = `+${parsedPhone.countryCallingCode}`;
-         record.mobile_without_country_code = parsedPhone.nationalNumber;
-       } else {
-         // Fallback: strip non-digits
-         const digits = mainPhoneStr.replace(/\D/g, '');
-         record.mobile_without_country_code = digits || null;
-       }
-       
-       if (record.mobile_without_country_code) {
-          if (phones.length > 1) {
-            const extraPhones = phones.slice(1).join(', ');
-            record.crm_note = record.crm_note ? `${record.crm_note} | Extra phones: ${extraPhones}` : `Extra phones: ${extraPhones}`;
-          }
-       }
-    }
     
-    if (!record.mobile_without_country_code) {
-      // try to find phone in original data
-      const rawValues = Object.values(originalData).join(' ');
-      const phoneMatch = rawValues.match(/(?:\+?\d{1,3}[\s-]?)?\(?\d{3}\)?[\s-]?\d{3}[\s-]?\d{4}/);
-      if (phoneMatch) {
-         const phoneNumber = parsePhoneNumberFromString(phoneMatch[0], 'IN');
-         if (phoneNumber && phoneNumber.isValid()) {
-            record.country_code = `+${phoneNumber.countryCallingCode}`;
-            record.mobile_without_country_code = phoneNumber.nationalNumber;
-         } else {
-           const digits = phoneMatch[0].replace(/\D/g, '');
-           if (digits.length >= 10) {
-             record.mobile_without_country_code = digits.slice(-10);
-           }
-         }
+    // Preserve original country_code from CSV if provided; only reset phone for re-extraction
+    const originalCountryCode = record.country_code;
+    record.mobile_without_country_code = null;
+    record.country_code = null;
+    
+    if (phoneMatches && phoneMatches.length > 0) {
+      const validPhones: { cc: string, nat: string }[] = [];
+      const seenPhones = new Set<string>();
+      
+      for (const phoneStr of phoneMatches) {
+        let cc: string | null = null;
+        let nat: string | null = null;
+        
+        // If original CSV had a country_code, try parsing with that first
+        const phoneWithCC = originalCountryCode ? originalCountryCode + phoneStr : phoneStr;
+        const parsedPhone = parsePhoneNumberFromString(phoneWithCC, 'IN');
+        if (parsedPhone && parsedPhone.isValid()) {
+          cc = `+${parsedPhone.countryCallingCode}`;
+          nat = parsedPhone.nationalNumber;
+        } else {
+          const digits = phoneStr.replace(/\D/g, '');
+          if (digits.length >= 10) {
+            nat = digits.slice(-10);
+          }
+        }
+
+        if (nat) {
+          const uniqueKey = `${cc || ''}${nat}`;
+          if (!seenPhones.has(uniqueKey)) {
+            seenPhones.add(uniqueKey);
+            validPhones.push({ cc: cc as any, nat });
+          }
+        }
+      }
+
+      if (validPhones.length > 0) {
+        record.country_code = validPhones[0].cc || originalCountryCode;
+        record.mobile_without_country_code = validPhones[0].nat;
+        
+        if (validPhones.length > 1) {
+          const extraPhones = validPhones.slice(1).map(p => (p.cc || '') + p.nat).join(', ');
+          record.crm_note = record.crm_note ? `${record.crm_note} | Extra phones: ${extraPhones}` : `Extra phones: ${extraPhones}`;
+        }
       }
     }
 

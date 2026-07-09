@@ -4,13 +4,14 @@ const API_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:3001';
 
 export const importCSV = (
   file: File,
-  onProgress: (event: ProgressEvent) => void
+  onProgress: (event: ProgressEvent) => void,
+  abortController?: AbortController
 ): Promise<ImportResponse['data']> => {
   return new Promise((resolve, reject) => {
     const formData = new FormData();
     formData.append('file', file);
 
-    const abortController = new AbortController();
+    const controller = abortController || new AbortController();
     
     // Ping the backend every 3 minutes to prevent Render's free tier from spinning down due to "inactivity"
     const keepAwakeInterval = setInterval(() => {
@@ -20,7 +21,7 @@ export const importCSV = (
     fetch(`${API_URL}/api/import`, {
       method: 'POST',
       body: formData,
-      signal: abortController.signal,
+      signal: controller.signal,
     }).then(async (response) => {
       if (!response.ok) {
         clearInterval(keepAwakeInterval);

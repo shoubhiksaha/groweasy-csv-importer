@@ -4,9 +4,9 @@ An intelligent, AI-powered CSV importer built for Groweasy CRM. It ingests messy
 
 ## 🌟 Key Features
 - **Efficient Parsing**: Uses `Papa.NODE_STREAM_INPUT` to process CSV buffers in chunks before passing them to the AI.
-- **AI-Powered Extraction**: Uses Gemini 2.5 Flash to automatically map arbitrary columns to CRM fields.
-- **Deterministic Pre-mapping**: Employs Regex heuristics to identify obvious fields (like email/phone) *before* hitting AI. This acts as a hint, dramatically reducing hallucinations and API costs.
-- **Batch Processing with Backoff**: Chunks processing into batches of 25 to respect Gemini rate limits, with exponential backoff for resilience.
+- **Hybrid AI & Local Extraction**: Uses Gemini 2.5 Flash to intelligently map arbitrary columns to CRM fields just once using a sample of 5 rows.
+- **Deterministic High-Speed Processing**: Once the schema is mapped, thousands of rows are processed deterministically using robust regex extractors in massive local batches.
+- **Batch Processing**: Chunks processing into local batches of 1000 to keep memory footprint low and provide real-time updates.
 - **Real-Time UI**: Next.js 15 frontend with Server-Sent Events (SSE) providing a live progress bar.
 - **Virtualized Tables**: Uses `@tanstack/react-virtual` to efficiently render thousands of rows in the preview and results views without lag.
 - **Rules Processing**: Handles multiple emails/phones (routing extras to notes), cleans up phone formats, and filters skipped rows seamlessly.
@@ -22,8 +22,8 @@ At the root directory, you can use these commands:
 ## Implementation Details
 
 - **Frontend (Next.js)**: Drag & Drop upload with a lightweight PapaParse chunked preview. The initial preview parses and displays only the first 100 rows to ensure UI responsiveness. The "Confirm Import" pushes the entire file buffer to the backend API.
-- **Backend (Express)**: Receives the file via Multer (max 10MB CSV), parses it chunk by chunk using `Papa.NODE_STREAM_INPUT`, and dispatches batches to Gemini.
-- **AI Processing**: Gemini 2.5 Flash maps fields into standard headers. It employs an exponential backoff retry mechanism (up to 3 tries per batch).
+- **Backend (Express)**: Receives the file via Multer (max 10MB CSV), parses it chunk by chunk using `Papa.NODE_STREAM_INPUT`, and processes them in batches of 1000.
+- **AI Processing**: Gemini 2.5 Flash maps arbitrary fields into standard headers by inferring context from the first 5 rows of data. It is called exactly once per import.
 - **Validation**: Strict row-by-row Zod schema parsing guarantees valid output shapes, dropping invalid rows into a skipped records list instead of failing entire batches.
 - **Progress Tracking**: Uses SSE (Server-Sent Events) to provide real-time batch completion percentages to the frontend.
 - **Export**: Generates a downloadable CSV mapping from the successfully processed entries.
@@ -78,7 +78,7 @@ The application is structured as a monorepo and can be deployed easily:
 - **Backend (Render/Railway)**: Point to the `server/` directory. Run `npm run build` and start with `npm start`. Ensure you set `GEMINI_API_KEY` and `CLIENT_URL` (for CORS, though we allow `*` by default for ease of testing).
 
 ## ⚠️ Known Limitations
-- **Rate Limits**: The AI batch processing size is currently set to 25 to balance rate limits and speed. For extremely large files (e.g. 100k+ rows) on a free Gemini tier, this may take time or hit API limits. We use exponential backoff to handle 429 Too Many Requests seamlessly.
+- **Rate Limits**: By using the hybrid architecture (AI mapping once, local extraction for all rows), rate limit issues are greatly reduced. If the single AI mapping call fails, the system falls back to deterministic keyword-based header matching automatically.
 - **NPM Audit Warning**: Running `npm audit` will report a moderate advisory related to `postcss` inside the Next.js dependency tree. This is an upstream advisory in Next.js and has been deliberately left untouched to avoid breaking the build with force-downgrades.
 - **Phone Parsing Bias**: The fallback phone number parsing (`libphonenumber-js`) defaults to India (`IN`) to handle GrowEasy sample data effectively. International numbers might parse imperfectly without an explicit country code.
 - **Progress Tracking Accuracy**: The progress bar updates per-batch using a pre-calculated total record count. While highly accurate, the exact percentage reflects batch completion rather than per-row granularity.
