@@ -85,6 +85,15 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       skipEmptyLines: true,
     });
 
+    res.on('close', () => {
+      if (!hasError && !res.writableEnded) {
+        logger.warn('Client disconnected prematurely. Aborting import.');
+        hasError = true;
+        papaStream.abort();
+        stream.destroy();
+      }
+    });
+
     stream.pipe(papaStream);
 
     papaStream.on('data', async (row: any) => {
