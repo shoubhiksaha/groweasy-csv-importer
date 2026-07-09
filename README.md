@@ -3,13 +3,12 @@
 An intelligent, AI-powered CSV importer built for Groweasy CRM. It ingests messy, unstructured lead data, standardizes it into a unified schema, and filters invalid records.
 
 ## 🌟 Key Features
-- **Efficient Parsing**: Uses `Papa.NODE_STREAM_INPUT` to process CSV buffers chunk by chunk.
-- **Hybrid AI & Local Extraction**: Uses Gemini 2.5 Flash to intelligently map arbitrary columns to CRM fields just once using a sample of 5 rows.
-- **Deterministic High-Speed Processing**: Once the schema is mapped, thousands of rows are processed deterministically using robust regex extractors in massive local batches (5000 rows in ~6 seconds).
-- **Batch Processing**: Chunks processing into local batches of 1000 to keep memory footprint low and provide real-time updates.
-- **Real-Time UI**: Next.js 15 frontend with Server-Sent Events (SSE) providing a live progress bar and a graceful **Cancel Import** flow.
+- **Extreme Performance**: Processes 5,000+ rows in **under 6 seconds** using a highly optimized Hybrid AI pipeline.
+- **Hybrid AI & Local Extraction**: Calls Gemini 2.5 Flash exactly **once** on a 5-row sample to map arbitrary columns to CRM fields, preventing rate-limit blocks and timeout failures.
+- **Robust Data Recovery**: Uses advanced multi-stage regex and `libphonenumber-js` to extract and split merged emails/phones perfectly, even if the AI fails.
+- **Memory Safe & Cancellable**: Fully streams data internally with a strict 10MB limit. Users can instantly cancel an active import from the UI, which gracefully drops the TCP connection and destroys server streams to prevent CPU leaks.
+- **Real-Time UI**: Next.js 15 frontend with Server-Sent Events (SSE) providing a live progress bar.
 - **Virtualized Tables**: Uses `@tanstack/react-virtual` to efficiently render thousands of rows in the preview and results views without lag.
-- **Robust Rules Engine**: Handles multiple emails/phones (splitting glued numbers and routing extras to notes), cleans up complex Indian and International phone formats, and relies on an aggressive keyword safety net for unmapped columns.
 
 ## Scripts
 
