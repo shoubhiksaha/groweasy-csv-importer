@@ -25,13 +25,12 @@ export const handleImport = async (req: Request, res: Response, next: NextFuncti
     await parseCSVStream(req.file.buffer, res, totalRecordsCount);
 
     // No need to call res.end() here, the stream service should handle it after completing
-  } catch (error) {
-    console.error("MY_ERROR", 'Import controller error', error);
-    // If headers haven't been sent, we can use standard JSON error
+  } catch (error: any) {
+    logger.error('Import controller error', error);
     if (!res.headersSent) {
       next(error);
-    } else {
-      try { res.write(`data: ${JSON.stringify({ type: 'error', message: 'An unexpected error occurred during processing. ' + (error?.message || error) + '' })}\n\n`); } catch(e) { console.error("WRITE FAILED", e); }
+    } else if (!res.destroyed && !res.writableEnded) {
+      res.write(`data: ${JSON.stringify({ type: 'error', message: error?.message || 'An unexpected error occurred during processing.' })}\n\n`);
       res.end();
     }
   }

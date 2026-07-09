@@ -28,16 +28,6 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     // To prevent processing subsequent batches if an unrecoverable error occurs
     let hasError = false;
 
-    // Detect if client drops connection
-    res.on('close', () => {
-      if (!hasError && !res.writableEnded) {
-        logger.warn('Client disconnected prematurely. Aborting import.');
-        hasError = true;
-        papaStream.destroy(); // stop parsing
-        reject(new Error('Client disconnected'));
-      }
-    });
-
     // Send Initial Progress Event so UI doesn't wait for the first batch
     res.write(`data: ${JSON.stringify({
       type: 'progress',
@@ -67,7 +57,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       totalRecords++;
 
       if (currentBatch.length >= batchSize) {
-        console.log("PAUSING"); papaStream.pause(); // Pause streaming to process batch
+        papaStream.pause(); // Pause streaming to process batch
         batchIndex++;
         
         const pingInterval = setInterval(() => {
@@ -81,11 +71,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
 
         try {
           if (!columnMapping) {
-            console.log("GETTING AI MAPPING"); const sampleRows = currentBatch.slice(0, 5);
+            const sampleRows = currentBatch.slice(0, 5);
             columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
           }
 
-          console.log("PROCESSING BATCH"); const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
+          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
           allCrmRecords.push(...crmRecords);
           allSkippedDetails.push(...skippedRecords);
@@ -105,13 +95,15 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           papaStream.resume();
         } catch (error: any) {
           clearInterval(pingInterval);
-          console.error("MY_ERROR", `Error processing batch ${batchIndex}`, error);
+          logger.error(`Error processing batch ${batchIndex}`, error);
           hasError = true;
-          res.write(`data: ${JSON.stringify({
-            type: 'error',
-            message: `Failed to process batch ${batchIndex}. ${error.message}`
-          })}\n\n`);
-          res.end();
+          if (!res.destroyed && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({
+              type: 'error',
+              message: `Failed to process batch ${batchIndex}. ${error.message}`
+            })}\n\n`);
+            res.end();
+          }
           reject(error);
         }
       }
@@ -144,11 +136,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
 
         try {
           if (!columnMapping) {
-            console.log("GETTING AI MAPPING"); const sampleRows = currentBatch.slice(0, 5);
+            const sampleRows = currentBatch.slice(0, 5);
             columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
           }
 
-          console.log("PROCESSING BATCH"); const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
+          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
 
           allCrmRecords.push(...crmRecords);
@@ -165,13 +157,15 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           })}\n\n`);
         } catch (error: any) {
           clearInterval(pingInterval);
-          console.error("MY_ERROR", `Error processing final batch ${batchIndex}`, error);
+          logger.error(`Error processing final batch ${batchIndex}`, error);
           hasError = true;
-          res.write(`data: ${JSON.stringify({
-            type: 'error',
-            message: `Failed to process batch ${batchIndex}. ${error.message}`
-          })}\n\n`);
-          res.end();
+          if (!res.destroyed && !res.writableEnded) {
+            res.write(`data: ${JSON.stringify({
+              type: 'error',
+              message: `Failed to process batch ${batchIndex}. ${error.message}`
+            })}\n\n`);
+            res.end();
+          }
           return reject(error);
         }
       }
