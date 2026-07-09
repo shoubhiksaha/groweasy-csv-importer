@@ -2,7 +2,8 @@ import Papa from 'papaparse';
 import { Readable } from 'stream';
 import { Response } from 'express';
 import { logger } from '../utils/logger';
-import { processBatch } from './batch.service';
+import { processBatchLocal } from './batch.service';
+import { inferColumnMappingWithAI } from './ai.service';
 import { SkippedRecord } from '../types/api.types';
 import { CRMRecord } from '../types/crm.types';
 
@@ -15,12 +16,14 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     let batchIndex = 0;
     let totalRecords = 0;
     let processedRecords = 0;
-    const batchSize = 25; // 25 records per batch to balance latency and context
+    const batchSize = 1000; // Increase to 1000 since processing is local now
 
     // Accumulators for the final result
     const allCrmRecords: import('../types/crm.types').CRMRecord[] = [];
     const allSkippedDetails: SkippedRecord[] = [];
     const startTime = Date.now();
+    
+    let columnMapping: Record<string, string | null> | null = null;
 
     // To prevent processing subsequent batches if an unrecoverable error occurs
     let hasError = false;
@@ -44,14 +47,13 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       totalBatches: Math.ceil(totalRecordsCount / batchSize),
       processedRecords: 0,
       totalRecords: totalRecordsCount,
-      message: 'Initializing import...',
+      message: 'Initializing AI mapping...',
     })}\n\n`);
 
     // PapaParse stream parsing
     const papaStream = Papa.parse(Papa.NODE_STREAM_INPUT, {
       header: true,
       skipEmptyLines: true,
-      // We don't know if the file is UTF-8 or something else, but Papa handles Node streams mostly as UTF-8 unless configured otherwise
     });
 
     stream.pipe(papaStream);
@@ -80,7 +82,12 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         }, 15000);
 
         try {
-          const { crmRecords, skippedRecords } = await processBatch(headers, currentBatch, batchIndex, totalRecords);
+          if (!columnMapping) {
+            const sampleRows = currentBatch.slice(0, 5);
+            columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+          }
+
+          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
           allCrmRecords.push(...crmRecords);
           allSkippedDetails.push(...skippedRecords);
@@ -138,7 +145,12 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         }, 15000);
 
         try {
-          const { crmRecords, skippedRecords } = await processBatch(headers, currentBatch, batchIndex, totalRecords);
+          if (!columnMapping) {
+            const sampleRows = currentBatch.slice(0, 5);
+            columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
+          }
+
+          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
 
           allCrmRecords.push(...crmRecords);
