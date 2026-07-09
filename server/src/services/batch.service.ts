@@ -86,6 +86,17 @@ export const processBatchLocal = (
       const col = columnMapping[field];
       if (col) contactColumns.add(col);
     }
+    
+    // Safety net: If AI failed to map a column like "Contact Info", still include it in the scan
+    // as long as it's not an owner column.
+    for (const header of Object.keys(originalData)) {
+      const lower = header.toLowerCase();
+      const isContactRelated = lower.includes('contact') || lower.includes('email') || lower.includes('phone') || lower.includes('mobile');
+      const isOwner = lower.includes('owner');
+      if (isContactRelated && !isOwner) {
+        contactColumns.add(header);
+      }
+    }
     const contactRawValues = Object.entries(originalData)
       .filter(([key]) => contactColumns.has(key))
       .map(([, val]) => val)
