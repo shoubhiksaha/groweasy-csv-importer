@@ -25,6 +25,18 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     // To prevent processing subsequent batches if an unrecoverable error occurs
     let hasError = false;
 
+    // Detect if client drops connection
+    if (res.req) {
+      res.req.on('close', () => {
+        if (!hasError && !res.writableEnded) {
+          logger.warn('Client disconnected prematurely. Aborting import.');
+          hasError = true;
+          papaStream.destroy(); // stop parsing
+          reject(new Error('Client disconnected'));
+        }
+      });
+    }
+
     // Send Initial Progress Event so UI doesn't wait for the first batch
     res.write(`data: ${JSON.stringify({
       type: 'progress',
@@ -59,8 +71,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
         batchIndex++;
         
         const pingInterval = setInterval(() => {
-          if (!hasError) {
+          // Check writableEnded and destroyed to prevent EPIPE crashes if client disconnected
+          if (!hasError && !res.writableEnded && !res.destroyed) {
             res.write(`:\n\n`); // SSE comment acts as a ping
+          } else {
+            clearInterval(pingInterval);
           }
         }, 15000);
 
@@ -115,7 +130,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       if (currentBatch.length > 0) {
         batchIndex++;
         const pingInterval = setInterval(() => {
-          if (!hasError) res.write(`:\n\n`);
+          if (!hasError && !res.writableEnded && !res.destroyed) {
+            res.write(`:\n\n`);
+          } else {
+            clearInterval(pingInterval);
+          }
         }, 15000);
 
         try {
