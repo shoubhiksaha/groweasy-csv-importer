@@ -185,7 +185,7 @@ export default function Home() {
               </div>
             )}
             <div className="mt-4">
-              <Button variant="secondary" onClick={handleCancelImport}>Cancel Import</Button>
+              <Button variant="danger" onClick={handleCancelImport}>Cancel Import</Button>
             </div>
           </Card>
         </div>
