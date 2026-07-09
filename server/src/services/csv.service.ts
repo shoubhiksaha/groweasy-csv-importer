@@ -29,16 +29,14 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     let hasError = false;
 
     // Detect if client drops connection
-    if (res.req) {
-      res.req.on('close', () => {
-        if (!hasError && !res.writableEnded) {
-          logger.warn('Client disconnected prematurely. Aborting import.');
-          hasError = true;
-          papaStream.destroy(); // stop parsing
-          reject(new Error('Client disconnected'));
-        }
-      });
-    }
+    res.on('close', () => {
+      if (!hasError && !res.writableEnded) {
+        logger.warn('Client disconnected prematurely. Aborting import.');
+        hasError = true;
+        papaStream.destroy(); // stop parsing
+        reject(new Error('Client disconnected'));
+      }
+    });
 
     // Send Initial Progress Event so UI doesn't wait for the first batch
     res.write(`data: ${JSON.stringify({
@@ -69,7 +67,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       totalRecords++;
 
       if (currentBatch.length >= batchSize) {
-        papaStream.pause(); // Pause streaming to process batch
+        console.log("PAUSING"); papaStream.pause(); // Pause streaming to process batch
         batchIndex++;
         
         const pingInterval = setInterval(() => {
@@ -83,11 +81,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
 
         try {
           if (!columnMapping) {
-            const sampleRows = currentBatch.slice(0, 5);
+            console.log("GETTING AI MAPPING"); const sampleRows = currentBatch.slice(0, 5);
             columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
           }
 
-          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
+          console.log("PROCESSING BATCH"); const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
           allCrmRecords.push(...crmRecords);
           allSkippedDetails.push(...skippedRecords);
@@ -107,7 +105,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           papaStream.resume();
         } catch (error: any) {
           clearInterval(pingInterval);
-          logger.error(`Error processing batch ${batchIndex}`, error);
+          console.error("MY_ERROR", `Error processing batch ${batchIndex}`, error);
           hasError = true;
           res.write(`data: ${JSON.stringify({
             type: 'error',
@@ -120,7 +118,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
     });
 
     papaStream.on('error', (err: any) => {
-      logger.error('PapaParse stream error', err);
+      console.error("MY_ERROR", 'PapaParse stream error', err);
       hasError = true;
       res.write(`data: ${JSON.stringify({
         type: 'error',
@@ -146,11 +144,11 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
 
         try {
           if (!columnMapping) {
-            const sampleRows = currentBatch.slice(0, 5);
+            console.log("GETTING AI MAPPING"); const sampleRows = currentBatch.slice(0, 5);
             columnMapping = await inferColumnMappingWithAI(headers, sampleRows);
           }
 
-          const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
+          console.log("PROCESSING BATCH"); const { crmRecords, skippedRecords } = processBatchLocal(columnMapping, currentBatch, batchIndex, totalRecords);
           clearInterval(pingInterval);
 
           allCrmRecords.push(...crmRecords);
@@ -167,7 +165,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
           })}\n\n`);
         } catch (error: any) {
           clearInterval(pingInterval);
-          logger.error(`Error processing final batch ${batchIndex}`, error);
+          console.error("MY_ERROR", `Error processing final batch ${batchIndex}`, error);
           hasError = true;
           res.write(`data: ${JSON.stringify({
             type: 'error',

@@ -26,12 +26,12 @@ export const handleImport = async (req: Request, res: Response, next: NextFuncti
 
     // No need to call res.end() here, the stream service should handle it after completing
   } catch (error) {
-    logger.error('Import controller error', error);
+    console.error("MY_ERROR", 'Import controller error', error);
     // If headers haven't been sent, we can use standard JSON error
     if (!res.headersSent) {
       next(error);
     } else {
-      res.write(`data: ${JSON.stringify({ type: 'error', message: 'An unexpected error occurred during processing.' })}\n\n`);
+      try { res.write(`data: ${JSON.stringify({ type: 'error', message: 'An unexpected error occurred during processing. ' + (error?.message || error) + '' })}\n\n`); } catch(e) { console.error("WRITE FAILED", e); }
       res.end();
     }
   }
