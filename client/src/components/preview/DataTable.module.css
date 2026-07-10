@@ -44,10 +44,10 @@
   font-weight: 600;
   text-transform: capitalize;
 }
-.statusNew { background: var(--info); }
-.statusFollowUp { background: var(--warning); }
-.statusClosedWon { background: var(--success); }
-.statusClosedLost { background: var(--danger); }
+.statusGoodLead    { background: var(--success); }
+.statusDidNotConnect { background: var(--info); }
+.statusBadLead     { background: var(--danger); }
+.statusSaleDone    { background: #7c3aed; }
 
 .errorBadge {
   background: var(--danger);

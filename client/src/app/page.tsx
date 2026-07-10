@@ -47,7 +47,10 @@ export default function Home() {
           setHeaders(results.meta.fields);
         }
         setPreviewData(results.data as Record<string, unknown>[]);
-        setTotalRows(results.data.length); // This is just the preview count
+        // Estimate total rows from file size (avg ~100 bytes/row) — the backend's
+        // first SSE 'progress' event will send the accurate totalRecords to override this.
+        const estimatedRows = Math.max(results.data.length, Math.round(selectedFile.size / 100));
+        setTotalRows(estimatedRows);
         setIsParsing(false);
       },
       error: (error) => {

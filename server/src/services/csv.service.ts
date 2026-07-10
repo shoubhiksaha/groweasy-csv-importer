@@ -89,8 +89,7 @@ export const parseCSVStream = (fileBuffer: Buffer, res: Response, totalRecordsCo
       if (!hasError && !res.writableEnded) {
         logger.warn('Client disconnected prematurely. Aborting import.');
         hasError = true;
-        papaStream.abort();
-        stream.destroy();
+        stream.destroy(); // Destroying the source stream stops all data flowing into PapaParse
       }
     });
 

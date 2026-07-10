@@ -172,7 +172,7 @@ Once both servers are running, open **http://localhost:3000** in your browser.
 
 #### Sample Test Files
 
-8 ready-to-use test CSVs are available in the `test/` directory:
+7 ready-to-use test CSVs are available in the `test/` directory:
 
 | File | Description |
 |------|-------------|

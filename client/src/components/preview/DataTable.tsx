@@ -74,12 +74,12 @@ export const DataTable: React.FC<DataTableProps> = ({ headers, data, maxHeight =
                       <div className={styles.cellContent}>
                         {header === 'crm_status' && cellValue ? (
                           <span className={`${styles.statusBadge} ${
-                            cellValue === 'New' ? styles.statusNew :
-                            cellValue === 'Follow_Up' ? styles.statusFollowUp :
-                            cellValue === 'Closed_Won' ? styles.statusClosedWon :
-                            cellValue === 'Closed_Lost' ? styles.statusClosedLost : ''
+                            cellValue === 'GOOD_LEAD_FOLLOW_UP' ? styles.statusGoodLead :
+                            cellValue === 'DID_NOT_CONNECT' ? styles.statusDidNotConnect :
+                            cellValue === 'BAD_LEAD' ? styles.statusBadLead :
+                            cellValue === 'SALE_DONE' ? styles.statusSaleDone : ''
                           }`}>
-                            {cellValue.toString().replace('_', ' ')}
+                            {cellValue.toString().replace(/_/g, ' ')}
                           </span>
                         ) : header === 'reason' && cellValue ? (
                           <span className={styles.errorBadge}>{cellValue.toString()}</span>

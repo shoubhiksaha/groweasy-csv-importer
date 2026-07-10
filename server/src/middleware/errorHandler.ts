@@ -19,9 +19,11 @@ export const errorHandler = (
   }
 
   if (err.name === 'MulterError') {
-    return res.status(400).json({
+    // Use 413 for file size so the client's friendly error message is triggered
+    const status = (err as any).code === 'LIMIT_FILE_SIZE' ? 413 : 400;
+    return res.status(status).json({
       success: false,
-      message: err.message,
+      message: status === 413 ? 'File too large. Maximum allowed size is 10MB.' : err.message,
     });
   }
 
