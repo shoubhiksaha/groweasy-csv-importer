@@ -28,7 +28,7 @@ const mappingSchema: Schema = {
   },
 };
 
-export const inferColumnMappingWithAI = async (headers: string[], sampleRows: any[]): Promise<Record<string, string | null>> => {
+export const inferColumnMappingWithAI = async (headers: string[], sampleRows: any[], maxRetries = 3): Promise<Record<string, string | null>> => {
   const genAI = getGenAI();
 
   const model = genAI.getGenerativeModel({
@@ -50,12 +50,20 @@ export const inferColumnMappingWithAI = async (headers: string[], sampleRows: an
   Return only the JSON object mapping CRM fields to CSV headers.
   `;
 
-  const result = await model.generateContent(prompt);
-  const responseText = result.response.text();
-  
-  try {
-    return JSON.parse(responseText);
-  } catch (error) {
-    throw new Error('AI response was not valid JSON');
+  let lastError: any;
+  for (let attempt = 1; attempt <= maxRetries; attempt++) {
+    try {
+      const result = await model.generateContent(prompt);
+      const responseText = result.response.text();
+      return JSON.parse(responseText);
+    } catch (error) {
+      lastError = error;
+      if (attempt < maxRetries) {
+        // Wait before retrying (1s, 2s, etc)
+        await new Promise(resolve => setTimeout(resolve, attempt * 1000));
+      }
+    }
   }
+
+  throw new Error(`AI mapping failed after ${maxRetries} attempts: ${lastError?.message || 'Unknown error'}`);
 };

@@ -4,7 +4,7 @@ An intelligent, AI-powered CSV importer built for Groweasy CRM. It ingests messy
 
 ## 🌟 Key Features
 - **Extreme Performance**: Processes 5,000+ rows in **under 6 seconds** using a highly optimized Hybrid AI pipeline.
-- **Hybrid AI & Local Extraction**: Calls Gemini 2.5 Flash exactly **once** on a 5-row sample to map arbitrary columns to CRM fields, preventing rate-limit blocks and timeout failures.
+- **Hybrid AI & Local Extraction**: Calls Gemini 2.5 Flash exactly **once** on a 5-row sample to map arbitrary columns to CRM fields, preventing rate-limit blocks and timeout failures. Includes a 3-attempt exponential backoff retry mechanism for the AI call.
 - **Robust Data Recovery**: Uses advanced multi-stage regex and `libphonenumber-js` to extract and split merged emails/phones perfectly, even if the AI fails.
 - **Memory Safe & Cancellable**: Fully streams data internally with a strict 10MB limit. Users can instantly cancel an active import from the UI, which gracefully drops the TCP connection and destroys server streams to prevent CPU leaks.
 - **Real-Time UI**: Next.js 15 frontend with Server-Sent Events (SSE) providing a live progress bar.
